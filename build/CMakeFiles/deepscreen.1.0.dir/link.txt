@@ -1,0 +1,2 @@
+/usr/bin/ar qc libdeepscreen.1.0.a  CMakeFiles/deepscreen.1.0.dir/src/main.cpp.o
+/usr/bin/ranlib libdeepscreen.1.0.a

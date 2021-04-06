@@ -1,0 +1,8 @@
+/home/adev/dev/deepsreen/build/CMakeFiles/install/strip.dir
+/home/adev/dev/deepsreen/build/CMakeFiles/install/local.dir
+/home/adev/dev/deepsreen/build/CMakeFiles/install.dir
+/home/adev/dev/deepsreen/build/CMakeFiles/list_install_components.dir
+/home/adev/dev/deepsreen/build/CMakeFiles/rebuild_cache.dir
+/home/adev/dev/deepsreen/build/CMakeFiles/deepscreen.dir
+/home/adev/dev/deepsreen/build/CMakeFiles/edit_cache.dir
+/home/adev/dev/deepsreen/build/CMakeFiles/deepscreen.1.0.dir
