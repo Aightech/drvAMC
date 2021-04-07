@@ -42,18 +42,27 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 ###### Special libraries  ######
-if(NO)
-  set(EXTRA_LIBS "pthread")
+if(0)
+  set(EXTRA_LIBS "pthread" "sfml-graphics" "sfml-window" "sfml-system")
 endif()
 
-find_package(OpenCV REQUIRED)
-if (OpenCV_FOUND)
-  list(APPEND EXTRA_LIBS ${OpenCV_LIBS})
-  list(APPEND EXTRA_INCLUDES ${OpenCV_INCLUDE_DIRS})
-  message("-- Opencv library Found")
+find_package(SFML 2.5 COMPONENTS graphics audio REQUIRED)
+if(SFML_FOUND)
+  list(APPEND EXTRA_LIBS sfml-graphics) 
+  #list(APPEND EXTRA_INCLUDES)
+  message("-- SFML2 library Found")
 else ()
-  message("Couldn't find Opencv library")
-endif (OpenCV_FOUND)
+  message("Couldn't find SFML2 library")
+endif()
+
+# find_package(OpenCV REQUIRED)
+# if (OpenCV_FOUND)
+#   list(APPEND EXTRA_LIBS ${OpenCV_LIBS})
+#   list(APPEND EXTRA_INCLUDES ${OpenCV_INCLUDE_DIRS})
+#   message("-- Opencv library Found")
+# else ()
+#   message("Couldn't find Opencv library")
+# endif (OpenCV_FOUND)
 
 
 
