@@ -8,7 +8,15 @@
 
 #define PI 3.14159265
 
-int wheel =0;
+int wheel = 0;
+
+class Interaction
+{
+public:
+  Interaction(){};
+  double posx, posy, posz;
+  double force=0;
+};
 
 class Material
 {
@@ -16,18 +24,22 @@ class Material
     Material(){};
     Material(std::string name)
     {
-        m_image.loadFromFile(name + ".png");
+        m_image.loadFromFile(g_path + name + ".png");
+        m_imageSizeX = m_image.getSize().x;
+        m_imageSizeY = m_image.getSize().y;
+
         m_texture.loadFromImage(m_image);
         m_sprite.setTexture(m_texture);
 
         m_spriteRect =
             sf::IntRect(sf::IntRect(m_imageSelectOffset, m_imageSelectOffset,
-                                    m_imageSize - 2 * m_imageSelectOffset,
-                                    m_imageSize - 2 * m_imageSelectOffset));
+                                    m_imageSizeX - 2 * m_imageSelectOffset,
+                                    m_imageSizeY - 2 * m_imageSelectOffset));
         m_sprite.setTextureRect(m_spriteRect);
-        m_sprite.setPosition(sf::Vector2f(4, 4));
+
+        m_image_array = new sf::Uint8[m_imageSizeX * m_imageSizeY * 4];
         const sf::Uint8 *ptr = m_image.getPixelsPtr();
-        for(int i = 0; i < m_imageSize * m_imageSize * 4; i++)
+        for(int i = 0; i < m_imageSizeX * m_imageSizeY * 4; i++)
             m_image_array[i] = *(ptr + i);
         std::cout << m_image.getSize().x << std::endl;
     };
@@ -70,51 +82,34 @@ class Material
     };
 
     void
-    touch(uint32_t posx, uint32_t posy, uint32_t posz)
+    touch(Interaction& interaction)
     {
+      uint32_t cx=interaction.posx;
+      uint32_t cy=interaction.posy;
+      uint32_t posz=interaction.posz;
         const sf::Uint8 *ptr = m_image.getPixelsPtr();
-        int cx = posx;
-        int cy = posy;
-        int h = m_imageSize;
-        int w = m_imageSize;
+        double radius = posz;
 
-        double rx = wheel*4;
-        double ry = rx;
+        auto mapping = [radius](int d, int c, int ij, int max) {
+            double coef = 1 + 0.002 * (radius - d);
+            ij = c - (c - ij) * coef;
+            return std::max(0, std::min(max - 1, ij));
+        };
 
-        int distC = cx * cx + cy * cy;
-        for(int i = 0; i < h; i++)
-            for(int j = 0; j < w; j++)
+        for(int i = 0; i < m_imageSizeY; i++)
+            for(int j = 0; j < m_imageSizeX; j++)
             {
+                int x = j; //by default the map maping is identical
+                int y = i;
                 int dist = sqrt((i - cy) * (i - cy) + (j - cx) * (j - cx));
-                if(dist < rx && dist != 0)
+                if(dist < radius && dist != 0) //if the pix is in the circle
                 {
-                    double coef = (1 + 20 * 0.0001 * (rx - dist));
-                    int x = cx - double(cx - j) * coef;
-                    int y = cy - double(cy - i) * coef;
-                    x = std::max(0, std::min(h - 1, x));
-                    y = std::max(0, std::min(w - 1, y));
-                    //res.at<Vec3b>(i, j) = src.at<Vec3b>(x, y);
-
-                    m_image_array[(i * m_imageSize + j) * 4 + 0] =
-                        *(ptr + (y * m_imageSize + x) * 4 + 0);
-                    m_image_array[(i * m_imageSize + j) * 4 + 1] =
-                        *(ptr + (y * m_imageSize + x) * 4 + 1);
-                    m_image_array[(i * m_imageSize + j) * 4 + 2] =
-                        *(ptr + (y * m_imageSize + x) * 4 + 2);
-                    m_image_array[(i * m_imageSize + j) * 4 + 3] =
-                        *(ptr + (y * m_imageSize + x) * 4 + 3);
+                    x = mapping(dist, cx, j, m_imageSizeX);
+                    y = mapping(dist, cy, i, m_imageSizeY);
                 }
-                else
-                {
-                    m_image_array[(i * m_imageSize + j) * 4 + 0] =
-                        *(ptr + (i * m_imageSize + j) * 4 + 0);
-                    m_image_array[(i * m_imageSize + j) * 4 + 1] =
-                        *(ptr + (i * m_imageSize + j) * 4 + 1);
-                    m_image_array[(i * m_imageSize + j) * 4 + 2] =
-                        *(ptr + (i * m_imageSize + j) * 4 + 2);
-                    m_image_array[(i * m_imageSize + j) * 4 + 3] =
-                        *(ptr + (i * m_imageSize + j) * 4 + 3);
-                }
+                for(int k : {0, 1, 2, 3}) //set the pix to its mapped orignal
+                    m_image_array[(i * m_imageSizeY + j) * 4 + k] =
+                        *(ptr + (y * m_imageSizeY + x) * 4 + k);
             }
         m_texture.update(m_image_array);
     };
@@ -136,8 +131,10 @@ class Material
     sf::Image m_image;
     sf::IntRect m_spriteRect;
     int32_t m_imageSelectOffset = 6;
-    static const int32_t m_imageSize = 389;
-    sf::Uint8 m_image_array[m_imageSize * m_imageSize * 4];
+    int32_t m_imageSizeX;
+    int32_t m_imageSizeY;
+    static std::string g_path;
+    sf::Uint8 *m_image_array;
 
     bool m_selected = false;
 };
@@ -147,10 +144,9 @@ class TextureArr
     public:
     TextureArr()
     {
-        std::string listMat[] = {"foam"};
-        for(int i = 0; i < 2; i++)
-            for(int j = 0; j < 2; j++)
-                m_materials.push_back(new Material(listMat[0]));
+      std::string listMat[] = {"sand", "gelee", "wood", "foam"};
+        for(int i = 0; i < 4; i++)
+                m_materials.push_back(new Material(listMat[i]));
 
         for(int i = 0; i < 2; i++)
             for(int j = 0; j < 2; j++)
@@ -164,11 +160,10 @@ class TextureArr
         for(auto mat : m_materials) win.draw(mat->sprite());
     }
     void
-    update(sf::RenderWindow &win)
+    update(sf::RenderWindow &win, Interaction& interaction)
     {
         // get the local mouse position (relative to a window)
-        sf::Vector2i pos =
-            sf::Mouse::getPosition(win); // window is a sf::Window
+      sf::Vector2i pos(interaction.posx,interaction.posy);
         for(auto mat : m_materials)
         {
             const sf::IntRect rect = mat->spriteRect();
@@ -176,7 +171,11 @@ class TextureArr
             mat->select(selected);
             if(selected)
             {
-                mat->touch(pos.x - rect.left, pos.y - rect.top, 5);
+	      Interaction interacRelative;
+	      interacRelative.posx = interaction.posx-rect.left;
+	      interacRelative.posy = interaction.posy-rect.top;
+	      interacRelative.posz = interaction.posz;
+	      mat->touch(interacRelative);
             }
         }
     }
@@ -185,13 +184,14 @@ class TextureArr
     std::vector<Material *> m_materials;
 };
 
-
+std::string Material::g_path = "../fig/";
 int
 main(int argc, char **argv)
 {
 
     sf::RenderWindow window(sf::VideoMode(1000, 1000), "SFML works!");
     TextureArr textarr;
+    Interaction interaction;
 
     while(window.isOpen())
     {
@@ -200,19 +200,16 @@ main(int argc, char **argv)
         {
             if(event.type == sf::Event::Closed)
                 window.close();
-	    else if(event.type == sf::Event::MouseWheelMoved)
-            {
-	      wheel += event.mouseWheel.delta;
-                // display number of ticks mouse wheel has moved
-                std::cout << wheel << '\n';
-            }
+            else if(event.type == sf::Event::MouseWheelMoved)
+	      interaction.posz+=4*event.mouseWheel.delta;
         }
-
+	sf::Vector2i position = sf::Mouse::getPosition(window);
+	interaction.posx = position.x;
+	interaction.posy = position.y;
         window.clear(sf::Color(255, 255, 255, 255));
-        textarr.update(window);
+        textarr.update(window, interaction);
         textarr.draw(window);
         window.display();
     }
     return 0;
 }
-
