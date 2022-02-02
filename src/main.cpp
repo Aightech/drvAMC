@@ -6,16 +6,24 @@
 #include <string.h>
 #include <vector>
 
+#include "drvAMC.hpp"
+
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netdb.h> 
+
+
 #define PI 3.14159265
 
 int wheel = 0;
 
 class Interaction
 {
-public:
-  Interaction(){};
-  double posx, posy, posz;
-  double force=0;
+    public:
+    Interaction(){};
+    double posx, posy, posz;
+    double force = 0;
 };
 
 class Material
@@ -82,11 +90,11 @@ class Material
     };
 
     void
-    touch(Interaction& interaction)
+    touch(Interaction &interaction)
     {
-      uint32_t cx=interaction.posx;
-      uint32_t cy=interaction.posy;
-      uint32_t posz=interaction.posz;
+        uint32_t cx = interaction.posx;
+        uint32_t cy = interaction.posy;
+        uint32_t posz = interaction.posz;
         const sf::Uint8 *ptr = m_image.getPixelsPtr();
         double radius = posz;
 
@@ -144,9 +152,9 @@ class TextureArr
     public:
     TextureArr()
     {
-      std::string listMat[] = {"sand", "gelee", "wood", "foam"};
+        std::string listMat[] = {"sand", "gelee", "square", "foam"};
         for(int i = 0; i < 4; i++)
-                m_materials.push_back(new Material(listMat[i]));
+            m_materials.push_back(new Material(listMat[i]));
 
         for(int i = 0; i < 2; i++)
             for(int j = 0; j < 2; j++)
@@ -160,10 +168,10 @@ class TextureArr
         for(auto mat : m_materials) win.draw(mat->sprite());
     }
     void
-    update(sf::RenderWindow &win, Interaction& interaction)
+    update(sf::RenderWindow &win, Interaction &interaction)
     {
         // get the local mouse position (relative to a window)
-      sf::Vector2i pos(interaction.posx,interaction.posy);
+        sf::Vector2i pos(interaction.posx, interaction.posy);
         for(auto mat : m_materials)
         {
             const sf::IntRect rect = mat->spriteRect();
@@ -171,11 +179,11 @@ class TextureArr
             mat->select(selected);
             if(selected)
             {
-	      Interaction interacRelative;
-	      interacRelative.posx = interaction.posx-rect.left;
-	      interacRelative.posy = interaction.posy-rect.top;
-	      interacRelative.posz = interaction.posz;
-	      mat->touch(interacRelative);
+                Interaction interacRelative;
+                interacRelative.posx = interaction.posx - rect.left;
+                interacRelative.posy = interaction.posy - rect.top;
+                interacRelative.posz = interaction.posz;
+                mat->touch(interacRelative);
             }
         }
     }
@@ -185,31 +193,63 @@ class TextureArr
 };
 
 std::string Material::g_path = "../fig/";
+
 int
 main(int argc, char **argv)
 {
+    
 
-    sf::RenderWindow window(sf::VideoMode(1000, 1000), "SFML works!");
-    TextureArr textarr;
-    Interaction interaction;
+    
+    char buffer[256] = {0x00, 0x00};
+    n = write(sockfd, buffer, 2);
+    if(n < 0)
+        printf("ERROR writing to socket");
+    
+    close(sockfd);
 
-    while(window.isOpen())
-    {
-        sf::Event event;
-        while(window.pollEvent(event))
-        {
-            if(event.type == sf::Event::Closed)
-                window.close();
-            else if(event.type == sf::Event::MouseWheelMoved)
-	      interaction.posz+=4*event.mouseWheel.delta;
-        }
-	sf::Vector2i position = sf::Mouse::getPosition(window);
-	interaction.posx = position.x;
-	interaction.posy = position.y;
-        window.clear(sf::Color(255, 255, 255, 255));
-        textarr.update(window, interaction);
-        textarr.draw(window);
-        window.display();
-    }
+    //  Driver drv = Driver("/dev/ttyUSB0");
+    //     uint16_t v;
+    //      drv.writeAccess();
+    //      drv.enableBridge();
+
+    //      drv.writeIndex<uint32_t>(0x38, 0x00, 50000);
+    //      drv.writeIndex<int32_t>(0x45, 0x00, -5000);
+    //     // // for(;;)
+    // //       {
+    // // int32_t pos_measured_i32 = drv.readIndex<int32_t>(0x12, 0x00);
+    // //       std::cout << "pos: " << std::dec << pos_measured_i32 << "\n";
+    // //       }
+
+    //     sf::RenderWindow window(sf::VideoMode(1000, 1000), "SFML works!");
+    //     TextureArr textarr;
+    //     Interaction interaction;
+
+    //     while(window.isOpen())
+    //     {
+    //       int32_t pos_measured_i32 = drv.readIndex<int32_t>(0x12, 0x00);
+    //       std::cout << "pos: " << std::dec << pos_measured_i32 << "\t";
+    //         sf::Event event;
+    //         while(window.pollEvent(event))
+    //         {
+    //             if(event.type == sf::Event::Closed)
+    //                 window.close();
+    //             // else if(event.type == sf::Event::MouseWheelMoved)
+    //             //     interaction.posz += 4 * event.mouseWheel.delta;
+
+    //         }
+    //         sf::Vector2i position = sf::Mouse::getPosition(window);
+    //         interaction.posx = position.x;
+    //         interaction.posy = position.y;
+    // 	interaction.posz = (5000+ pos_measured_i32)/50.;
+
+    // 	std::cout << "inter: " << std::dec << interaction.posz << "\n";
+    //         window.clear(sf::Color(255, 255, 255, 255));
+    //         textarr.update(window, interaction);
+    //         textarr.draw(window);
+    //         window.display();
+    //     }
+
+    // drv.enableBridge(false);
+    // drv.writeAccess(false);
     return 0;
 }
