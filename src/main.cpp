@@ -24,7 +24,7 @@ class Material
 {
     public:
     Material(){};
-    Material(std::string name)
+    Material(std::string name, uint32_t stiff)
     {
         m_image.loadFromFile(g_path + name + ".png");
         m_imageSizeX = m_image.getSize().x;
@@ -43,7 +43,8 @@ class Material
         const sf::Uint8 *ptr = m_image.getPixelsPtr();
         for(int i = 0; i < m_imageSizeX * m_imageSizeY * 4; i++)
             m_image_array[i] = *(ptr + i);
-        std::cout << m_image.getSize().x << std::endl;
+        //std::cout << m_image.getSize().x << std::endl;
+        m_stiffness = stiff;
     };
 
     void
@@ -127,6 +128,9 @@ class Material
         return m_spriteRect;
     };
 
+    bool m_selected = false;
+    uint32_t m_stiffness;
+
     private:
     sf::Sprite m_sprite;
     sf::Texture m_texture;
@@ -137,18 +141,17 @@ class Material
     int32_t m_imageSizeY;
     static std::string g_path;
     sf::Uint8 *m_image_array;
-
-    bool m_selected = false;
 };
 
 class TextureArr
 {
     public:
-    TextureArr()
+    TextureArr(Driver *d)
     {
+        drv = d;
         std::string listMat[] = {"sand", "gelee", "square", "foam"};
         for(int i = 0; i < 4; i++)
-            m_materials.push_back(new Material(listMat[i]));
+            m_materials.push_back(new Material(listMat[i], 10000 * i+10000));
 
         for(int i = 0; i < 2; i++)
             for(int j = 0; j < 2; j++)
@@ -170,6 +173,12 @@ class TextureArr
         {
             const sf::IntRect rect = mat->spriteRect();
             bool selected = rect.contains(static_cast<sf::Vector2i>(pos));
+            if(selected == true && mat->m_selected == false)
+	      {
+                drv->writeIndex<uint32_t>(0x38, 0x00, mat->m_stiffness);
+		std::cout << mat->m_stiffness << std::endl;
+	      }
+            
             mat->select(selected);
             if(selected)
             {
@@ -184,6 +193,7 @@ class TextureArr
 
     private:
     std::vector<Material *> m_materials;
+    Driver *drv;
 };
 
 std::string Material::g_path = "../fig/";
@@ -207,11 +217,11 @@ main(int argc, char **argv)
     // 	}
     // }
     // uint16_t v;
-    // drv.writeAccess();
-    // drv.enableBridge();
+    drv.writeAccess();
+    drv.enableBridge();
 
-    // drv.writeIndex<uint32_t>(0x38, 0x00, 50000);
-    // drv.writeIndex<int32_t>(0x45, 0x00, -5000);
+    drv.writeIndex<uint32_t>(0x38, 0x00, 10000);
+    drv.writeIndex<int32_t>(0x45, 0x00, -5000);
 
     // // for(;;)
     //       {
@@ -220,7 +230,7 @@ main(int argc, char **argv)
     //       }
 
     sf::RenderWindow window(sf::VideoMode(1000, 1000), "SFML works!");
-    TextureArr textarr;
+    TextureArr textarr(&drv);
     Interaction interaction;
     int32_t pos_measured_i32;
 
@@ -229,7 +239,7 @@ main(int argc, char **argv)
         try
         {
             pos_measured_i32 = drv.readIndex<int32_t>(0x12, 0x00);
-            std::cout << "pos: " << std::dec << pos_measured_i32 << std::endl;
+            //std::cout << "pos: " << std::dec << pos_measured_i32 << std::endl;
         }
         catch(const char *msg)
         {
@@ -249,8 +259,8 @@ main(int argc, char **argv)
         interaction.posy = position.y;
         interaction.posz = (5000 + pos_measured_i32) / 50.;
 
-	if(interaction.posz<0)
-	  interaction.posz=0;
+        if(interaction.posz < 0)
+            interaction.posz = 0;
         // std::cout << "inter: " << std::dec << interaction.posz << "\n";
         window.clear(sf::Color(255, 255, 255, 255));
         textarr.update(window, interaction);
@@ -258,7 +268,7 @@ main(int argc, char **argv)
         window.display();
     }
 
-    //drv.enableBridge(false);
-    //drv.writeAccess(false);
+    drv.enableBridge(false);
+    drv.writeAccess(false);
     return 0;
 }

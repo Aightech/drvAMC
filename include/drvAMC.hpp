@@ -120,9 +120,35 @@ class Driver
         *(uint16_t *)(buf + 6) = CRC(buf, 6); //compute crc on 6 first bits
         *(T *)(buf + 8) = val; // store value to write in the buffer
         *(uint16_t *)(buf + 8 + size) = CRC(buf + 8, size); //crc on the val
-        int n = write(m_fd, buf, 8 + size + 2);             // send request
-        read(m_fd, buf, n);        //read echo of the request
-        return read(m_fd, buf, 8); //read reply
+        int n = 8 + size + 2;
+        n -= write(m_fd, buf, 8 + size + 2); // send request
+        while(n > 0) n -= write(m_fd, buf + size + 10 - n, n);
+
+	int i = 0;
+        while(1)
+        {
+            n = read(m_fd, buf + i, 1);
+            if(n == 0)
+                throw "cannot receive anything";
+
+            if(i == 1)
+            {
+                if(buf[1] == 0xff)
+                    break;
+                else
+                    i--;
+            }
+            else if(i == 0 && buf[0] == 0xa5)
+                i++;
+        }
+        n = 6;
+        n -= read(m_fd, buf + 2, n); // read reply of the driver
+        while(n > 0) n -= read(m_fd, buf + 8 - n, n);
+        uint16_t crc = CRC(buf, 6);
+        if(crc != *(uint16_t *)(buf + 6))
+            throw "crc1 error";
+
+        return 1; //read reply
     };
 
     int
