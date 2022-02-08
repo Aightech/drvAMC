@@ -193,25 +193,26 @@ main(int argc, char **argv)
 {
 
     Driver drv = Driver("/dev/ttyUSB0");
-    for(;;)
-    {
-      try
-	{
-	  int32_t pos_measured_i32 = drv.readIndex<int32_t>(0x12, 0x00);
-	  std::cout << "pos: " << std::dec << pos_measured_i32 << "\n";
-	}
-      catch (const char* msg)
-	{
-	  std::cout << "ERROR: " << msg << "\n";
-	  exit(0);
-	}
-    }
-    uint16_t v;
-    drv.writeAccess();
-    drv.enableBridge();
+    // for(;;)
+    // {
+    //   try
+    // 	{
+    // 	  int32_t pos_measured_i32 = drv.readIndex<int32_t>(0x12, 0x00);
+    // 	  std::cout << "pos: " << std::dec << pos_measured_i32 << "\n";
+    // 	}
+    //   catch (const char* msg)
+    // 	{
+    // 	  std::cout << "ERROR: " << msg << "\n";
+    // 	  exit(0);
+    // 	}
+    // }
+    // uint16_t v;
+    // drv.writeAccess();
+    // drv.enableBridge();
 
-    drv.writeIndex<uint32_t>(0x38, 0x00, 50000);
-    drv.writeIndex<int32_t>(0x45, 0x00, -5000);
+    // drv.writeIndex<uint32_t>(0x38, 0x00, 50000);
+    // drv.writeIndex<int32_t>(0x45, 0x00, -5000);
+
     // // for(;;)
     //       {
     // int32_t pos_measured_i32 = drv.readIndex<int32_t>(0x12, 0x00);
@@ -221,11 +222,20 @@ main(int argc, char **argv)
     sf::RenderWindow window(sf::VideoMode(1000, 1000), "SFML works!");
     TextureArr textarr;
     Interaction interaction;
+    int32_t pos_measured_i32;
 
     while(window.isOpen())
     {
-        int32_t pos_measured_i32 = drv.readIndex<int32_t>(0x12, 0x00);
-        std::cout << "pos: " << std::dec << pos_measured_i32 << "\t";
+        try
+        {
+            pos_measured_i32 = drv.readIndex<int32_t>(0x12, 0x00);
+            std::cout << "pos: " << std::dec << pos_measured_i32 << std::endl;
+        }
+        catch(const char *msg)
+        {
+            std::cout << "ERROR: " << msg << "\n";
+            break;
+        }
         sf::Event event;
         while(window.pollEvent(event))
         {
@@ -239,14 +249,16 @@ main(int argc, char **argv)
         interaction.posy = position.y;
         interaction.posz = (5000 + pos_measured_i32) / 50.;
 
-        std::cout << "inter: " << std::dec << interaction.posz << "\n";
+	if(interaction.posz<0)
+	  interaction.posz=0;
+        // std::cout << "inter: " << std::dec << interaction.posz << "\n";
         window.clear(sf::Color(255, 255, 255, 255));
         textarr.update(window, interaction);
         textarr.draw(window);
         window.display();
     }
 
-    drv.enableBridge(false);
-    drv.writeAccess(false);
+    //drv.enableBridge(false);
+    //drv.writeAccess(false);
     return 0;
 }

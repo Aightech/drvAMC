@@ -68,14 +68,8 @@ class Driver
         //   std::cout << std::hex << (int)buf[i] <<  " ";
         // std::cout << "\n";
 
-        while((n = read(m_fd, buf, 1)) && buf[0] != 0xa5)
-            ;
-        if(n == 0)
-            throw "cannot receive anything";
-
-        bool replied_buff = false;
         int i = 0;
-        while(!replied_buff)
+        while(1)
         {
             n = read(m_fd, buf + i, 1);
             if(n == 0)
@@ -91,21 +85,9 @@ class Driver
             else if(i == 0 && buf[0] == 0xa5)
                 i++;
         }
-
-        n -= read(m_fd, buf, n); // read the echo of the request
-        while(n < 0) n -= read(m_fd, buf + 8 - n, n);
-        std::cout << "bytes read: " << std::dec << n << "\n" << std::flush;
-        std::cout << std::dec << n << "\n";
-        for(int i = 0; i < 8; i++) std::cout << std::hex << (int)buf[i] << " ";
-        std::cout << "\n";
-        n = size + 10;
-        n -= read(m_fd, buf, n); // read reply of the driver
-        while(n < 0) n -= read(m_fd, buf + size + 10 - n, n);
-        std::cout << "bytes read: " << std::dec << n << "\n" << std::flush;
-        std::cout << std::dec << n << "\n";
-        for(int i = 0; i < size + 10; i++)
-            std::cout << std::hex << (int)buf[i] << " ";
-        std::cout << "\n";
+        n = size + 8;
+        n -= read(m_fd, buf + 2, n); // read reply of the driver
+        while(n > 0) n -= read(m_fd, buf + size + 10 - n, n);
 
         uint16_t crc = CRC(buf, 6);
         if(crc != *(uint16_t *)(buf + 6))
@@ -118,6 +100,12 @@ class Driver
 
         if(buf[0] != 0xa5 || buf[1] != 0xff)
             throw "not from master";
+
+        // std::cout << "bytes read: " << std::dec << n << "\n" << std::flush;
+        // std::cout << std::dec << n << "\n";
+        // for(int i = 0; i < size + 10; i++)
+        //     std::cout << std::hex << (int)buf[i] << " ";
+        // std::cout << "\n";
 
         return *(T *)(buf + 8); //return value of the variable
     };
