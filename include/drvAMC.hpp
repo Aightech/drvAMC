@@ -1,6 +1,9 @@
 #ifndef ADVANCED_MOTION_DRIVER_H
 #define ADVANCED_MOTION_DRIVER_H
 
+#define ETHERNET_CONV
+///#define USB_CONV
+
 #include <cstring>
 #include <iostream>
 #include <string>
@@ -13,6 +16,13 @@
 #include <unistd.h>  // write(), read(), close()
 
 #include <stdio.h>
+
+#include <netdb.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+
+#include <stdexcept>
 
 class Driver
 {
@@ -50,9 +60,66 @@ class Driver
                                      index, offset,    (uint8_t)(size / 2)};
         *(uint16_t *)(buf + 6) = CRC(buf, 6); //compute crc on 6 first bits
         int n = write(m_fd, buf, 8);          //send request
-        n = read(m_fd, buf, 8);                   // read the echo of the request
-	n = read(m_fd, buf, 8 + size + 2);    // read reply of the driver
-        return *(T *)(buf + 8);               //return value of the variable
+        if(n != 8)
+            throw "Msg not fully sent";
+        // std::cout << "bytes written: " << std::dec << n << "\n" << std::flush;
+        // std::cout << std::dec<<n << "\n";
+        // for(int i=0; i<n; i++)
+        //   std::cout << std::hex << (int)buf[i] <<  " ";
+        // std::cout << "\n";
+
+        while((n = read(m_fd, buf, 1)) && buf[0] != 0xa5)
+            ;
+        if(n == 0)
+            throw "cannot receive anything";
+
+        bool replied_buff = false;
+        int i = 0;
+        while(!replied_buff)
+        {
+            n = read(m_fd, buf + i, 1);
+            if(n == 0)
+                throw "cannot receive anything";
+
+            if(i == 1)
+            {
+                if(buf[1] == 0xff)
+                    break;
+                else
+                    i--;
+            }
+            else if(i == 0 && buf[0] == 0xa5)
+                i++;
+        }
+
+        n -= read(m_fd, buf, n); // read the echo of the request
+        while(n < 0) n -= read(m_fd, buf + 8 - n, n);
+        std::cout << "bytes read: " << std::dec << n << "\n" << std::flush;
+        std::cout << std::dec << n << "\n";
+        for(int i = 0; i < 8; i++) std::cout << std::hex << (int)buf[i] << " ";
+        std::cout << "\n";
+        n = size + 10;
+        n -= read(m_fd, buf, n); // read reply of the driver
+        while(n < 0) n -= read(m_fd, buf + size + 10 - n, n);
+        std::cout << "bytes read: " << std::dec << n << "\n" << std::flush;
+        std::cout << std::dec << n << "\n";
+        for(int i = 0; i < size + 10; i++)
+            std::cout << std::hex << (int)buf[i] << " ";
+        std::cout << "\n";
+
+        uint16_t crc = CRC(buf, 6);
+        if(crc != *(uint16_t *)(buf + 6))
+            throw "crc1 error";
+
+        size = buf[5] * 2;
+        crc = CRC(buf + 8, size);
+        if(crc != *(uint16_t *)(buf + 8 + size))
+            throw "crc2 error";
+
+        if(buf[0] != 0xa5 || buf[1] != 0xff)
+            throw "not from master";
+
+        return *(T *)(buf + 8); //return value of the variable
     };
 
     template <typename T>

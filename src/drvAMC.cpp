@@ -1,24 +1,30 @@
 #include "drvAMC.hpp"
 
+
 Driver::Driver(const char *path, uint8_t address) : m_address(address)
 {
 
-  // int sockfd, portno, n;
-  //   struct sockaddr_in serv_addr;
-  //   struct hostent *server;
+  #ifdef ETHERNET_CONV
+  int sockfd, portno, n;
+    struct sockaddr_in serv_addr;
+    struct hostent *server;
 
-  //   portno = 9002;
-  //   sockfd = socket(AF_INET, SOCK_STREAM, 0);
-  //   server = gethostbyname("192.168.127.254");
-  //   bzero((char *)&serv_addr, sizeof(serv_addr));
-  //   serv_addr.sin_family = AF_INET;
-  //   bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr,
-  //         server->h_length);
-  //   serv_addr.sin_port = htons(portno);
+    portno = 9002;
+    m_fd = socket(AF_INET, SOCK_STREAM, 0);
+    server = gethostbyname("192.168.127.254");
+    bzero((char *)&serv_addr, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr,
+          server->h_length);
+    serv_addr.sin_port = htons(portno);
     
-  //   if(connect(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
-  //       printf("ERROR connecting\n");
-    
+    if(connect(m_fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
+        printf("ERROR connecting\n");
+
+  
+    #endif
+
+    #ifdef USB_CONV
     //display("> Check connection: ");
     m_fd = open(path, O_RDWR | O_NOCTTY);
     if(m_fd < 0)
@@ -59,6 +65,7 @@ Driver::Driver(const char *path, uint8_t address) : m_address(address)
     // Save tty settings, also checking for error
     if(tcsetattr(m_fd, TCSANOW, &tty) != 0)
         exit(-1);
+    #endif
 
     mk_crctable();
 }

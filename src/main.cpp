@@ -8,12 +8,6 @@
 
 #include "drvAMC.hpp"
 
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <netdb.h> 
-
-
 #define PI 3.14159265
 
 int wheel = 0;
@@ -197,59 +191,62 @@ std::string Material::g_path = "../fig/";
 int
 main(int argc, char **argv)
 {
-    
 
-    
-    char buffer[256] = {0x00, 0x00};
-    n = write(sockfd, buffer, 2);
-    if(n < 0)
-        printf("ERROR writing to socket");
-    
-    close(sockfd);
+    Driver drv = Driver("/dev/ttyUSB0");
+    for(;;)
+    {
+      try
+	{
+	  int32_t pos_measured_i32 = drv.readIndex<int32_t>(0x12, 0x00);
+	  std::cout << "pos: " << std::dec << pos_measured_i32 << "\n";
+	}
+      catch (const char* msg)
+	{
+	  std::cout << "ERROR: " << msg << "\n";
+	  exit(0);
+	}
+    }
+    uint16_t v;
+    drv.writeAccess();
+    drv.enableBridge();
 
-    //  Driver drv = Driver("/dev/ttyUSB0");
-    //     uint16_t v;
-    //      drv.writeAccess();
-    //      drv.enableBridge();
+    drv.writeIndex<uint32_t>(0x38, 0x00, 50000);
+    drv.writeIndex<int32_t>(0x45, 0x00, -5000);
+    // // for(;;)
+    //       {
+    // int32_t pos_measured_i32 = drv.readIndex<int32_t>(0x12, 0x00);
+    //       std::cout << "pos: " << std::dec << pos_measured_i32 << "\n";
+    //       }
 
-    //      drv.writeIndex<uint32_t>(0x38, 0x00, 50000);
-    //      drv.writeIndex<int32_t>(0x45, 0x00, -5000);
-    //     // // for(;;)
-    // //       {
-    // // int32_t pos_measured_i32 = drv.readIndex<int32_t>(0x12, 0x00);
-    // //       std::cout << "pos: " << std::dec << pos_measured_i32 << "\n";
-    // //       }
+    sf::RenderWindow window(sf::VideoMode(1000, 1000), "SFML works!");
+    TextureArr textarr;
+    Interaction interaction;
 
-    //     sf::RenderWindow window(sf::VideoMode(1000, 1000), "SFML works!");
-    //     TextureArr textarr;
-    //     Interaction interaction;
+    while(window.isOpen())
+    {
+        int32_t pos_measured_i32 = drv.readIndex<int32_t>(0x12, 0x00);
+        std::cout << "pos: " << std::dec << pos_measured_i32 << "\t";
+        sf::Event event;
+        while(window.pollEvent(event))
+        {
+            if(event.type == sf::Event::Closed)
+                window.close();
+            // else if(event.type == sf::Event::MouseWheelMoved)
+            //     interaction.posz += 4 * event.mouseWheel.delta;
+        }
+        sf::Vector2i position = sf::Mouse::getPosition(window);
+        interaction.posx = position.x;
+        interaction.posy = position.y;
+        interaction.posz = (5000 + pos_measured_i32) / 50.;
 
-    //     while(window.isOpen())
-    //     {
-    //       int32_t pos_measured_i32 = drv.readIndex<int32_t>(0x12, 0x00);
-    //       std::cout << "pos: " << std::dec << pos_measured_i32 << "\t";
-    //         sf::Event event;
-    //         while(window.pollEvent(event))
-    //         {
-    //             if(event.type == sf::Event::Closed)
-    //                 window.close();
-    //             // else if(event.type == sf::Event::MouseWheelMoved)
-    //             //     interaction.posz += 4 * event.mouseWheel.delta;
+        std::cout << "inter: " << std::dec << interaction.posz << "\n";
+        window.clear(sf::Color(255, 255, 255, 255));
+        textarr.update(window, interaction);
+        textarr.draw(window);
+        window.display();
+    }
 
-    //         }
-    //         sf::Vector2i position = sf::Mouse::getPosition(window);
-    //         interaction.posx = position.x;
-    //         interaction.posy = position.y;
-    // 	interaction.posz = (5000+ pos_measured_i32)/50.;
-
-    // 	std::cout << "inter: " << std::dec << interaction.posz << "\n";
-    //         window.clear(sf::Color(255, 255, 255, 255));
-    //         textarr.update(window, interaction);
-    //         textarr.draw(window);
-    //         window.display();
-    //     }
-
-    // drv.enableBridge(false);
-    // drv.writeAccess(false);
+    drv.enableBridge(false);
+    drv.writeAccess(false);
     return 0;
 }
