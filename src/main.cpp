@@ -15,11 +15,11 @@ main(int argc, char **argv)
 {
 
     Driver drv = Driver();
-    // drv.writeAccess();
-    // drv.enableBridge();
+    drv.writeAccess();
+    drv.enableBridge();
 
-    // drv.writeIndex<uint32_t>(0x38, 0x00, 10000);
-    // drv.writeIndex<int32_t>(0x45, 0x00, -5000);
+    drv.writeIndex<uint32_t>(0x38, 0x00, 10000);
+    drv.writeIndex<int32_t>(0x45, 0x00, -5000);
 
     sf::RenderWindow window(sf::VideoMode(1000, 1000), "DeepScreen");
     TextureArr textarr(&window, &drv);

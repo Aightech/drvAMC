@@ -160,16 +160,18 @@ Driver::read_until_master_reply(uint8_t *buf, int len)
     for(int i = 0;;) //while the replay is not a master reply
     {
         read(m_fd, buf + i, 1);
+	//std::cout<< std::hex << i<< ":" <<(int)buf[i] << " " << std::flush;
         if(i == 1)
         {
             if(buf[1] == 0xff)
                 break;
-            else
+            else if(buf[1] != 0xa5)
                 i--;
         }
         else if(i == 0 && buf[0] == 0xa5)
             i++;
     }
+    //std::cout<< "\n" << std::flush;
     int n = len - 2;             //remaining bytes to read
     n -= read(m_fd, buf + 2, n); // read reply of the driver
     while(n > 0)

@@ -125,7 +125,7 @@ TextureArr::update(sf::RenderWindow &win, Interaction &interaction)
         bool selected = rect.contains(static_cast<sf::Vector2i>(pos));
         if(selected == true && mat->m_selected == false)
         {
-            drv->writeIndex<uint32_t>(0x38, 0x00, mat->m_stiffness);
+	  //drv->writeIndex<uint32_t>(0x38, 0x00, mat->m_stiffness);
             std::cout << mat->m_stiffness << std::endl;
         }
 
@@ -136,6 +136,10 @@ TextureArr::update(sf::RenderWindow &win, Interaction &interaction)
             interacRelative.posx = interaction.posx - rect.left;
             interacRelative.posy = interaction.posy - rect.top;
             interacRelative.posz = interaction.posz;
+	    uint32_t offset = (188 - abs(188-interacRelative.posx))*200;
+	    //offset = offset;
+	    drv->writeIndex<uint32_t>(0x38, 0x00, mat->m_stiffness+offset);
+	    std::cout << offset << std::endl;
             mat->touch(interacRelative);
         }
     }
