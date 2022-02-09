@@ -30,6 +30,31 @@ class Driver
     Driver(const char *path, uint8_t address = 0x3f);
     ~Driver() { close(m_fd); };
 
+    template <typename T>
+    T
+    readIndex(uint8_t index, uint8_t offset)
+    {
+        uint8_t size = sizeof(T); //get the size of the variable to read
+        _readIndex(index, offset, size);
+        return *(T *)(m_buf + 8); //return value of the variable
+    };
+
+    template <typename T>
+    int
+    writeIndex(uint8_t index, uint8_t offset, T val)
+    {
+        uint8_t size = sizeof(T); //get the size of the variable to read
+        *(T *)(m_buf + 8) = val;  // store value to write in the buffer
+        _writeIndex(index, offset, size);
+        return 1;
+    };
+
+    int
+    writeAccess(bool active = true);
+    int
+    enableBridge(bool active = true);
+
+    private:
     uint16_t
     crchware(uint16_t data, uint16_t genpoly, uint16_t accum);
 
@@ -43,124 +68,22 @@ class Driver
     CRC(uint8_t *buf, int n);
 
     void
-    printBit(int8_t val)
-    {
-        std::cout << " ";
-        for(int i = 0; i < 8; i++)
-            if(1 & (val >> i))
-                std::cout << "[" + std::to_string(i) + "] ";
-    }
+    printBit(int8_t val);
 
-    template <typename T>
-    T
-    readIndex(uint8_t index, uint8_t offset)
-    {
-        uint8_t size = sizeof(T); //get the size of the variable to read
-        uint8_t buf[8 + size + 2] = {0xa5,  m_address, 0x01,
-                                     index, offset,    (uint8_t)(size / 2)};
-        *(uint16_t *)(buf + 6) = CRC(buf, 6); //compute crc on 6 first bits
-        int n = write(m_fd, buf, 8);          //send request
-        if(n != 8)
-            throw "Msg not fully sent";
-        // std::cout << "bytes written: " << std::dec << n << "\n" << std::flush;
-        // std::cout << std::dec<<n << "\n";
-        // for(int i=0; i<n; i++)
-        //   std::cout << std::hex << (int)buf[i] <<  " ";
-        // std::cout << "\n";
+    void
+    read_until_master_reply(uint8_t *buf, int len);
 
-        int i = 0;
-        while(1)
-        {
-            n = read(m_fd, buf + i, 1);
-            if(n == 0)
-                throw "cannot receive anything";
+    void
+    _readIndex(uint8_t index, uint8_t offset, uint8_t size);
 
-            if(i == 1)
-            {
-                if(buf[1] == 0xff)
-                    break;
-                else
-                    i--;
-            }
-            else if(i == 0 && buf[0] == 0xa5)
-                i++;
-        }
-        n = size + 8;
-        n -= read(m_fd, buf + 2, n); // read reply of the driver
-        while(n > 0) n -= read(m_fd, buf + size + 10 - n, n);
+    void
+    _writeIndex(uint8_t index, uint8_t offset, uint8_t size);
 
-        uint16_t crc = CRC(buf, 6);
-        if(crc != *(uint16_t *)(buf + 6))
-            throw "crc1 error";
-
-        size = buf[5] * 2;
-        crc = CRC(buf + 8, size);
-        if(crc != *(uint16_t *)(buf + 8 + size))
-            throw "crc2 error";
-
-        if(buf[0] != 0xa5 || buf[1] != 0xff)
-            throw "not from master";
-
-        // std::cout << "bytes read: " << std::dec << n << "\n" << std::flush;
-        // std::cout << std::dec << n << "\n";
-        // for(int i = 0; i < size + 10; i++)
-        //     std::cout << std::hex << (int)buf[i] << " ";
-        // std::cout << "\n";
-
-        return *(T *)(buf + 8); //return value of the variable
-    };
-
-    template <typename T>
-    int
-    writeIndex(uint8_t index, uint8_t offset, T val)
-    {
-        uint8_t size = sizeof(T); //get the size of the variable to read
-        uint8_t buf[8 + size + 2] = {0xa5,  m_address, 0x02,
-                                     index, offset,    (uint8_t)(size / 2)};
-        *(uint16_t *)(buf + 6) = CRC(buf, 6); //compute crc on 6 first bits
-        *(T *)(buf + 8) = val; // store value to write in the buffer
-        *(uint16_t *)(buf + 8 + size) = CRC(buf + 8, size); //crc on the val
-        int n = 8 + size + 2;
-        n -= write(m_fd, buf, 8 + size + 2); // send request
-        while(n > 0) n -= write(m_fd, buf + size + 10 - n, n);
-
-	int i = 0;
-        while(1)
-        {
-            n = read(m_fd, buf + i, 1);
-            if(n == 0)
-                throw "cannot receive anything";
-
-            if(i == 1)
-            {
-                if(buf[1] == 0xff)
-                    break;
-                else
-                    i--;
-            }
-            else if(i == 0 && buf[0] == 0xa5)
-                i++;
-        }
-        n = 6;
-        n -= read(m_fd, buf + 2, n); // read reply of the driver
-        while(n > 0) n -= read(m_fd, buf + 8 - n, n);
-        uint16_t crc = CRC(buf, 6);
-        if(crc != *(uint16_t *)(buf + 6))
-            throw "crc1 error";
-
-        return 1; //read reply
-    };
-
-    int
-    writeAccess(bool active = true);
-    int
-    enableBridge(bool active = true);
-
-    private:
     int m_fd;
     uint8_t m_address;
     uint16_t m_crctable[256];
     uint16_t m_crc_accumulator;
+    uint8_t m_buf[20];
 };
 
 #endif

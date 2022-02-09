@@ -1,11 +1,10 @@
 #include "drvAMC.hpp"
 
-
 Driver::Driver(const char *path, uint8_t address) : m_address(address)
 {
 
-  #ifdef ETHERNET_CONV
-  int sockfd, portno, n;
+#ifdef ETHERNET_CONV
+    int sockfd, portno, n;
     struct sockaddr_in serv_addr;
     struct hostent *server;
 
@@ -17,14 +16,13 @@ Driver::Driver(const char *path, uint8_t address) : m_address(address)
     bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr,
           server->h_length);
     serv_addr.sin_port = htons(portno);
-    
+
     if(connect(m_fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
         printf("ERROR connecting\n");
 
-  
-    #endif
+#endif
 
-    #ifdef USB_CONV
+#ifdef USB_CONV
     //display("> Check connection: ");
     m_fd = open(path, O_RDWR | O_NOCTTY);
     if(m_fd < 0)
@@ -65,7 +63,7 @@ Driver::Driver(const char *path, uint8_t address) : m_address(address)
     // Save tty settings, also checking for error
     if(tcsetattr(m_fd, TCSANOW, &tty) != 0)
         exit(-1);
-    #endif
+#endif
 
     mk_crctable();
 }
@@ -118,3 +116,78 @@ Driver::enableBridge(bool active)
 {
     return this->writeIndex<uint16_t>(0x01, 0x00, active ? 0x0000 : 0x0001);
 }
+
+void
+Driver::printBit(int8_t val)
+{
+    std::cout << " ";
+    for(int i = 0; i < 8; i++)
+        if(1 & (val >> i))
+            std::cout << "[" + std::to_string(i) + "] ";
+}
+
+void
+Driver::read_until_master_reply(uint8_t *buf, int len)
+{
+    for(int i = 0;;) //while the replay is not a master reply
+    {
+        read(m_fd, buf + i, 1);
+        if(i == 1)
+        {
+            if(buf[1] == 0xff)
+                break;
+            else
+                i--;
+        }
+        else if(i == 0 && buf[0] == 0xa5)
+            i++;
+    }
+    int n = len - 2;             //remaining bytes to read
+    n -= read(m_fd, buf + 2, n); // read reply of the driver
+    while(n > 0)
+        n -= read(m_fd, buf + len - n, n); // ensure all the bytes are read
+}
+
+void
+Driver::_readIndex(uint8_t index, uint8_t offset, uint8_t size)
+{
+    m_buf[0] = 0xa5;
+    m_buf[1] = m_address;
+    m_buf[2] = 0x01;
+    m_buf[3] = index;
+    m_buf[4] = offset;
+    m_buf[5] = (uint8_t)(size / 2);
+    *(uint16_t *)(m_buf + 6) = CRC(m_buf, 6); //compute crc on 6 first bits
+
+    int n = 8;
+    n -= write(m_fd, m_buf, 8);                      //send request
+    while(n > 0) n -= write(m_fd, m_buf + 8 - n, n); //ensure evtg is written
+    read_until_master_reply(m_buf, size + 10);       //get the master reply
+
+    if(CRC(m_buf, 6) != *(uint16_t *)(m_buf + 6)) //check if CRCs are valid
+        throw "crc1 error";
+    if(CRC(m_buf + 8, size) != *(uint16_t *)(m_buf + 8 + size))
+        throw "crc2 error";
+};
+
+void
+Driver::_writeIndex(uint8_t index, uint8_t offset, uint8_t size)
+{
+    m_buf[0] = 0xa5;
+    m_buf[1] = m_address;
+    m_buf[2] = 0x02;
+    m_buf[3] = index;
+    m_buf[4] = offset;
+    m_buf[5] = (uint8_t)(size / 2);
+    *(uint16_t *)(m_buf + 6) = CRC(m_buf, 6); //compute crc on 6 first bits
+    *(uint16_t *)(m_buf + 8 + size) = CRC(m_buf + 8, size); //crc on the val
+    int n = 8 + size + 2;
+
+    n -= write(m_fd, m_buf, 8 + size + 2); // send request
+    while(n > 0) n -= write(m_fd, m_buf + size + 10 - n, n);
+
+    read_until_master_reply(m_buf, 8);
+
+    if(CRC(m_buf, 6) != *(uint16_t *)(m_buf + 6))
+        throw "crc1 error";
+};
