@@ -91,7 +91,7 @@ Material::touch(Interaction &interaction)
     m_texture.update(m_image_array);
 }
 
-TextureArr::TextureArr(Driver *d)
+TextureArr::TextureArr(sf::RenderWindow* win, Driver *d): m_win(win)
 {
     drv = d;
     std::string listMat[] = {"sand", "gelee", "square", "foam"};
@@ -101,6 +101,11 @@ TextureArr::TextureArr(Driver *d)
     for(int i = 0; i < 2; i++)
         for(int j = 0; j < 2; j++)
             m_materials[i * 2 + j]->setSpritePos(10 + 400 * i, 10 + 400 * j);
+
+    m_stiffness_map = new uint32_t*[win->getSize().x];
+    for(int i=0; i<100; i++)
+      m_stiffness_map[i] = new uint32_t[win->getSize().y];
+    
 };
 
 void

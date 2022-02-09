@@ -14,17 +14,17 @@ int
 main(int argc, char **argv)
 {
 
-    Driver drv = Driver("/dev/ttyUSB0");
-    drv.writeAccess();
-    drv.enableBridge();
+    Driver drv = Driver();
+    // drv.writeAccess();
+    // drv.enableBridge();
 
-    drv.writeIndex<uint32_t>(0x38, 0x00, 10000);
-    drv.writeIndex<int32_t>(0x45, 0x00, -5000);
+    // drv.writeIndex<uint32_t>(0x38, 0x00, 10000);
+    // drv.writeIndex<int32_t>(0x45, 0x00, -5000);
 
     sf::RenderWindow window(sf::VideoMode(1000, 1000), "DeepScreen");
-    TextureArr textarr(&drv);
+    TextureArr textarr(&window, &drv);
     Interaction interaction;
-    int32_t pos_measured_i32;
+    int32_t pos_measured_i32=0;
 
     while(window.isOpen())
     {

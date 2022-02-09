@@ -1,15 +1,17 @@
 #include "drvAMC.hpp"
+#include <sys/ioctl.h>
+#include <sys/time.h>
 
-Driver::Driver(const char *path, uint8_t address) : m_address(address)
+Driver::Driver(uint8_t address) : m_address(address)
 {
 
 #ifdef ETHERNET_CONV
-    int sockfd, portno, n;
+    int portno;
     struct sockaddr_in serv_addr;
     struct hostent *server;
 
     portno = 9002;
-    m_fd = socket(AF_INET, SOCK_STREAM, 0);
+    m_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     server = gethostbyname("192.168.127.254");
     bzero((char *)&serv_addr, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
@@ -17,14 +19,40 @@ Driver::Driver(const char *path, uint8_t address) : m_address(address)
           server->h_length);
     serv_addr.sin_port = htons(portno);
 
-    if(connect(m_fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
-        printf("ERROR connecting\n");
+    SetSocketBlockingEnabled(m_fd, false);
+    std::cout << "[INFO] Try to connect..." << std::flush;
+    connect(m_fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr));
+
+    timeval tv;
+    tv.tv_sec = 2;
+    tv.tv_usec = 0;
+    fd_set fdset;
+    FD_ZERO(&fdset);
+    FD_SET(m_fd, &fdset);
+
+    if(select(m_fd + 1, NULL, &fdset, NULL, &tv) == 1)
+    {
+        int so_error;
+        socklen_t len = sizeof so_error;
+
+        getsockopt(m_fd, SOL_SOCKET, SO_ERROR, &so_error, &len);
+
+        if(so_error == 0)
+        {
+            std::cout << "OK" << std::endl;
+            m_is_connected = true;
+        }
+    }
+    else
+        std::cout << "Failed" << std::endl;
+
+    SetSocketBlockingEnabled(m_fd, true);
 
 #endif
 
 #ifdef USB_CONV
     //display("> Check connection: ");
-    m_fd = open(path, O_RDWR | O_NOCTTY);
+    m_fd = open("/dev/ttyUSB0", O_RDWR | O_NOCTTY);
     if(m_fd < 0)
         exit(-1);
     //display("OK\n");
@@ -151,43 +179,69 @@ Driver::read_until_master_reply(uint8_t *buf, int len)
 void
 Driver::_readIndex(uint8_t index, uint8_t offset, uint8_t size)
 {
-    m_buf[0] = 0xa5;
-    m_buf[1] = m_address;
-    m_buf[2] = 0x01;
-    m_buf[3] = index;
-    m_buf[4] = offset;
-    m_buf[5] = (uint8_t)(size / 2);
-    *(uint16_t *)(m_buf + 6) = CRC(m_buf, 6); //compute crc on 6 first bits
+    if(m_is_connected)
+    {
+        m_buf[0] = 0xa5;
+        m_buf[1] = m_address;
+        m_buf[2] = 0x01;
+        m_buf[3] = index;
+        m_buf[4] = offset;
+        m_buf[5] = (uint8_t)(size / 2);
+        *(uint16_t *)(m_buf + 6) = CRC(m_buf, 6); //compute crc on 6 first bits
 
-    int n = 8;
-    n -= write(m_fd, m_buf, 8);                      //send request
-    while(n > 0) n -= write(m_fd, m_buf + 8 - n, n); //ensure evtg is written
-    read_until_master_reply(m_buf, size + 10);       //get the master reply
+        int n = 8;
+        n -= write(m_fd, m_buf, 8); //send request
+        while(n > 0)
+            n -= write(m_fd, m_buf + 8 - n, n);    //ensure evtg is written
+        read_until_master_reply(m_buf, size + 10); //get the master reply
 
-    if(CRC(m_buf, 6) != *(uint16_t *)(m_buf + 6)) //check if CRCs are valid
-        throw "crc1 error";
-    if(CRC(m_buf + 8, size) != *(uint16_t *)(m_buf + 8 + size))
-        throw "crc2 error";
+        if(CRC(m_buf, 6) != *(uint16_t *)(m_buf + 6)) //check if CRCs are valid
+            throw "crc1 error";
+        if(CRC(m_buf + 8, size) != *(uint16_t *)(m_buf + 8 + size))
+            throw "crc2 error";
+    }
 };
 
 void
 Driver::_writeIndex(uint8_t index, uint8_t offset, uint8_t size)
 {
-    m_buf[0] = 0xa5;
-    m_buf[1] = m_address;
-    m_buf[2] = 0x02;
-    m_buf[3] = index;
-    m_buf[4] = offset;
-    m_buf[5] = (uint8_t)(size / 2);
-    *(uint16_t *)(m_buf + 6) = CRC(m_buf, 6); //compute crc on 6 first bits
-    *(uint16_t *)(m_buf + 8 + size) = CRC(m_buf + 8, size); //crc on the val
-    int n = 8 + size + 2;
+    if(m_is_connected)
+    {
+        m_buf[0] = 0xa5;
+        m_buf[1] = m_address;
+        m_buf[2] = 0x02;
+        m_buf[3] = index;
+        m_buf[4] = offset;
+        m_buf[5] = (uint8_t)(size / 2);
+        *(uint16_t *)(m_buf + 6) = CRC(m_buf, 6); //compute crc on 6 first bits
+        *(uint16_t *)(m_buf + 8 + size) = CRC(m_buf + 8, size); //crc on the val
+        int n = 8 + size + 2;
 
-    n -= write(m_fd, m_buf, 8 + size + 2); // send request
-    while(n > 0) n -= write(m_fd, m_buf + size + 10 - n, n);
+        n -= write(m_fd, m_buf, 8 + size + 2); // send request
+        while(n > 0) n -= write(m_fd, m_buf + size + 10 - n, n);
 
-    read_until_master_reply(m_buf, 8);
+        read_until_master_reply(m_buf, 8);
 
-    if(CRC(m_buf, 6) != *(uint16_t *)(m_buf + 6))
-        throw "crc1 error";
+        if(CRC(m_buf, 6) != *(uint16_t *)(m_buf + 6))
+            throw "crc1 error";
+    }
 };
+
+/** Returns true on success, or false if there was an error */
+bool
+Driver::SetSocketBlockingEnabled(int fd, bool blocking)
+{
+    if(fd < 0)
+        return false;
+
+#ifdef _WIN32
+    unsigned long mode = blocking ? 0 : 1;
+    return (ioctlsocket(fd, FIONBIO, &mode) == 0) ? true : false;
+#else
+    int flags = fcntl(fd, F_GETFL, 0);
+    if(flags == -1)
+        return false;
+    flags = blocking ? (flags & ~O_NONBLOCK) : (flags | O_NONBLOCK);
+    return (fcntl(fd, F_SETFL, flags) == 0) ? true : false;
+#endif
+}

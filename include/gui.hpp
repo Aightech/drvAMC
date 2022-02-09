@@ -11,8 +11,6 @@
 
 #define PI 3.14159265
 
-
-
 class Interaction
 {
     public:
@@ -65,7 +63,7 @@ class Material
 class TextureArr
 {
     public:
-    TextureArr(Driver *d);
+    TextureArr(sf::RenderWindow *win, Driver *d);
 
     void
     draw(sf::RenderWindow &win);
@@ -74,8 +72,9 @@ class TextureArr
 
     private:
     std::vector<Material *> m_materials;
+    sf::RenderWindow *m_win;
     Driver *drv;
+  uint32_t**  m_stiffness_map;
 };
-
 
 #endif

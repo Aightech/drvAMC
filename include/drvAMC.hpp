@@ -27,7 +27,7 @@
 class Driver
 {
     public:
-    Driver(const char *path, uint8_t address = 0x3f);
+    Driver(uint8_t address = 0x3f);
     ~Driver() { close(m_fd); };
 
     template <typename T>
@@ -79,7 +79,12 @@ class Driver
     void
     _writeIndex(uint8_t index, uint8_t offset, uint8_t size);
 
+    /** Returns true on success, or false if there was an error */
+    bool
+    SetSocketBlockingEnabled(int fd, bool blocking);
+
     int m_fd;
+  bool m_is_connected=false;
     uint8_t m_address;
     uint16_t m_crctable[256];
     uint16_t m_crc_accumulator;
