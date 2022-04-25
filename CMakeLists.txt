@@ -31,7 +31,7 @@ cmake_minimum_required(VERSION 3.0)
 
 ###### PROJECT NAME AND VERSION ######
 set(EXEC_NAME deepscreen)
-set(PROJECT_VERSION 1.0)
+set(PROJECT_VERSION 2.7)
 project(${EXEC_NAME} VERSION ${PROJECT_VERSION})
 
 ###### LIBRARY NAME ######

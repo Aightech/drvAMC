@@ -137,9 +137,9 @@ TextureArr::update(sf::RenderWindow &win, Interaction &interaction)
             interacRelative.posy = interaction.posy - rect.top;
             interacRelative.posz = interaction.posz;
 	    uint32_t offset = (188 - abs(188-interacRelative.posx))*200;
-	    //offset = offset;
+	    offset = offset;
 	    drv->writeIndex<uint32_t>(0x38, 0x00, mat->m_stiffness+offset);
-	    std::cout << offset << std::endl;
+	    std::cout << mat->m_stiffness+offset << std::endl;
             mat->touch(interacRelative);
         }
     }
