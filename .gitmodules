@@ -1,0 +1,3 @@
+[submodule "lib/com_client"]
+	path = lib/com_client
+	url = git@github.com:Aightech/com_client

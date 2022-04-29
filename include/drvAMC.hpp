@@ -1,34 +1,20 @@
-#ifndef ADVANCED_MOTION_DRIVER_H
-#define ADVANCED_MOTION_DRIVER_H
+#ifndef ADVANCED_MOTION_DRIVER_HPP
+#define ADVANCED_MOTION_DRIVER_HPP
 
-#define ETHERNET_CONV
-///#define USB_CONV
-
-#include <cstring>
 #include <iostream>
 #include <string>
-#include <vector>
 
-// Linux headers
-#include <errno.h>   // Error integer and strerror() function
-#include <fcntl.h>   // Contains file controls like O_RDWR
-#include <termios.h> // Contains POSIX terminal control definitions
-#include <unistd.h>  // write(), read(), close()
-
-#include <stdio.h>
-
-#include <netdb.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-
+#include "com_client.hpp"
 #include <stdexcept>
+
+namespace AMC
+{
 
 class Driver
 {
     public:
     Driver(uint8_t address = 0x3f);
-    ~Driver() { close(m_fd); };
+    ~Driver() { m_client.close_connection(); };
 
     template <typename T>
     T
@@ -83,16 +69,14 @@ class Driver
     bool
     SetSocketBlockingEnabled(int fd, bool blocking);
 
-    int m_fd;
-  bool m_is_connected=false;
+    bool m_is_connected = false;
     uint8_t m_address;
     uint16_t m_crctable[256];
     uint16_t m_crc_accumulator;
     uint8_t m_buf[20];
+
+    Communication::Client m_client;
 };
 
-#endif
-// std::cout << std::dec<<n << "\n";
-// for(int i=0; i<n; i++)
-//   std::cout << std::hex << (int)buf[i] <<  " ";
-// std::cout << "\n";
+} // namespace AMC
+#endif //ADVANCED_MOTION_DRIVER_HPP
