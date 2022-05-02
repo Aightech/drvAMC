@@ -16,6 +16,39 @@ class Driver
     Driver(uint8_t address = 0x3f);
     ~Driver() { m_client.close_connection(); };
 
+    int
+    writeAccess(bool active = true);
+    int
+    enableBridge(bool active = true);
+
+    void
+    set_p_gain(int32_t gain)
+    {
+        this->writeIndex<uint32_t>(0x38, 0x00, gain);
+    };
+    void
+    set_i_gain(int32_t gain)
+    {
+        this->writeIndex<uint32_t>(0x38, 0x02, gain);
+    };
+    void
+    set_d_gain(int32_t gain)
+    {
+        this->writeIndex<uint32_t>(0x38, 0x04, gain);
+    };
+
+    void
+    set_pos(int32_t pos)
+    {
+        this->writeIndex<int32_t>(0x45, 0x00, pos);
+    };
+
+    int32_t
+    get_pos()
+    {
+        return this->readIndex<int32_t>(0x12, 0x00);;
+    };
+
     template <typename T>
     T
     readIndex(uint8_t index, uint8_t offset)
@@ -34,11 +67,6 @@ class Driver
         _writeIndex(index, offset, size);
         return 1;
     };
-
-    int
-    writeAccess(bool active = true);
-    int
-    enableBridge(bool active = true);
 
     private:
     uint16_t
