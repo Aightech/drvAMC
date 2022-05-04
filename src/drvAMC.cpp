@@ -1,11 +1,35 @@
 #include "drvAMC.hpp"
 
+#define LOG(...)             \
+    if(m_verbose)            \
+    {                        \
+        printf(__VA_ARGS__); \
+        fflush(stdout);      \
+    }
+
 namespace AMC
 {
-Driver::Driver(uint8_t address) : m_address(address)
+  Driver::Driver(uint8_t address, bool verbose)
+    : m_address(address), m_verbose(true), m_client(verbose)
 {
-    m_client.open_connection("192.168.127.254", 9002);
+    m_mutex = new std::mutex();
+    try
+    {
+        LOG("\x1b[34m[AMC Driver]\x1b[0m\tStarting TCP Client.\n");
+        m_client.open_connection("192.168.127.254", 9002, 3);
+        m_is_connected = true;
+    }
+    catch(std::string msg)
+    {
+        std::cout << "\t\t\x1b[31mERROR:\x1b[0m " << msg << "\n";
+    }
     mk_crctable();
+
+    this->writeAccess();
+    this->enableBridge();
+
+    this->set_p_gain(10000);
+    this->set_pos(-5000);
 }
 
 void
@@ -67,32 +91,9 @@ Driver::printBit(int8_t val)
 }
 
 void
-Driver::read_until_master_reply(uint8_t *buf, int len)
-{
-    for(int i = 0;;) //while the replay is not a master reply
-    {
-        m_client.readS(buf + i, 1);
-        //std::cout<< std::hex << i<< ":" <<(int)buf[i] << " " << std::flush;
-        if(i == 1)
-        {
-            if(buf[1] == 0xff)
-                break;
-            else if(buf[1] != 0xa5)
-                i--;
-        }
-        else if(i == 0 && buf[0] == 0xa5)
-            i++;
-    }
-    //std::cout<< "\n" << std::flush;
-    int n = len - 2;                 //remaining bytes to read
-    n -= m_client.readS(buf + 2, n); // read reply of the driver
-    while(n > 0)
-        n -= m_client.readS(buf + len - n, n); // ensure all the bytes are read
-}
-
-void
 Driver::_readIndex(uint8_t index, uint8_t offset, uint8_t size)
 {
+    std::lock_guard<std::mutex> lck(*m_mutex); //ensure only one thread using it
     if(m_is_connected)
     {
         m_buf[0] = 0xa5;
@@ -107,7 +108,7 @@ Driver::_readIndex(uint8_t index, uint8_t offset, uint8_t size)
         n -= m_client.writeS(m_buf, 8); //send request
         while(n > 0)
             n -= m_client.writeS(m_buf + 8 - n, n); //ensure evtg is written
-        read_until_master_reply(m_buf, size + 10);  //get the master reply
+        _read_until_master_reply(m_buf, size + 10);  //get the master reply
 
         if(CRC(m_buf, 6) != *(uint16_t *)(m_buf + 6)) //check if CRCs are valid
             throw "crc1 error";
@@ -119,6 +120,7 @@ Driver::_readIndex(uint8_t index, uint8_t offset, uint8_t size)
 void
 Driver::_writeIndex(uint8_t index, uint8_t offset, uint8_t size)
 {
+    std::lock_guard<std::mutex> lck(*m_mutex); //ensure only one thread using it
     if(m_is_connected)
     {
         m_buf[0] = 0xa5;
@@ -130,16 +132,41 @@ Driver::_writeIndex(uint8_t index, uint8_t offset, uint8_t size)
         *(uint16_t *)(m_buf + 6) = CRC(m_buf, 6); //compute crc on 6 first bits
         *(uint16_t *)(m_buf + 8 + size) = CRC(m_buf + 8, size); //crc on the val
         int n = 8 + size + 2;
-
+	
         n -= m_client.writeS(m_buf, 8 + size + 2); // send request
         while(n > 0) n -= m_client.writeS(m_buf + size + 10 - n, n);
 
-        read_until_master_reply(m_buf, 8);
+        _read_until_master_reply(m_buf, 8);
 
         if(CRC(m_buf, 6) != *(uint16_t *)(m_buf + 6))
             throw "crc1 error";
     }
 };
 
+void
+Driver::_read_until_master_reply(uint8_t *buf, int len)
+{//should only be used by _writeIndex or _readIndex (to ensure locking properly)
+    for(int i = 0;;) //while the replay is not a master reply
+    {
+        m_client.readS(buf + i, 1);
+        if(i == 1)
+        {
+            if(buf[1] == 0xff)
+                break;
+            else if(buf[1] != 0xa5)
+                i--;
+        }
+        else if(i == 0 && buf[0] == 0xa5)
+            i++;
+    }
+    int n = len - 2;                 //remaining bytes to read
+    n -= m_client.readS(buf + 2, n); // read reply of the driver
+    while(n > 0)
+        n -= m_client.readS(buf + len - n, n); // ensure all the bytes are read
+    // std::cout << "read " << std::endl;
+    // for(int i = 0; i < len; i++)
+    //     std::cout << std::hex << i << ":" << (int)buf[i] << " " << std::flush;
+    // std::cout << std::endl;
+}
 
 } // namespace AMC

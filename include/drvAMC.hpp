@@ -5,6 +5,7 @@
 #include <string>
 
 #include "com_client.hpp"
+#include <mutex>
 #include <stdexcept>
 
 namespace AMC
@@ -13,8 +14,13 @@ namespace AMC
 class Driver
 {
     public:
-    Driver(uint8_t address = 0x3f);
-    ~Driver() { m_client.close_connection(); };
+    Driver(uint8_t address = 0x3f, bool verbose = false);
+    ~Driver()
+    {
+        this->enableBridge(false);
+        this->writeAccess(false);
+        m_client.close_connection();
+    };
 
     int
     writeAccess(bool active = true);
@@ -46,7 +52,7 @@ class Driver
     int32_t
     get_pos()
     {
-        return this->readIndex<int32_t>(0x12, 0x00);;
+        return this->readIndex<int32_t>(0x12, 0x00);
     };
 
     template <typename T>
@@ -85,7 +91,7 @@ class Driver
     printBit(int8_t val);
 
     void
-    read_until_master_reply(uint8_t *buf, int len);
+    _read_until_master_reply(uint8_t *buf, int len);
 
     void
     _readIndex(uint8_t index, uint8_t offset, uint8_t size);
@@ -101,9 +107,10 @@ class Driver
     uint8_t m_address;
     uint16_t m_crctable[256];
     uint16_t m_crc_accumulator;
-    uint8_t m_buf[20];
-
+    uint8_t m_buf[50];
+    bool m_verbose;
     Communication::Client m_client;
+    std::mutex *m_mutex;
 };
 
 } // namespace AMC

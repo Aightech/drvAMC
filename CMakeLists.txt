@@ -31,7 +31,7 @@ cmake_minimum_required(VERSION 3.3)
 
 ###### PROJECT NAME AND VERSION ######
 set(EXEC_NAME drvAMC)
-set(PROJECT_VERSION 2.10)
+set(PROJECT_VERSION 2.11)
 project(${EXEC_NAME} VERSION ${PROJECT_VERSION})
 
 ###### LIBRARY NAME ######
