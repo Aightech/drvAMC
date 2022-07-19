@@ -16,13 +16,15 @@ namespace AMC
     try
     {
         LOG("\x1b[34m[AMC Driver]\x1b[0m\tStarting TCP Client.\n");
-        m_client.open_connection("192.168.127.254", 9002, 3);
+        m_client.open_connection(Communication::Client::TCP, "192.168.127.254", 9002, 3);
         m_is_connected = true;
     }
     catch(std::string msg)
     {
         std::cout << "\t\t\x1b[31mERROR:\x1b[0m " << msg << "\n";
     }
+    
+    
     mk_crctable();
 
     this->writeAccess();
