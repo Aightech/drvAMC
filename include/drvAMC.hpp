@@ -15,12 +15,7 @@ class Driver
 {
     public:
     Driver(uint8_t address = 0x3f, bool verbose = false);
-    ~Driver()
-    {
-        this->enableBridge(false);
-        this->writeAccess(false);
-        m_client.close_connection();
-    };
+    ~Driver();
 
     int
     writeAccess(bool active = true);

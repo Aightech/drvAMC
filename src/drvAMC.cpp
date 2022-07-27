@@ -1,30 +1,24 @@
 #include "drvAMC.hpp"
-
-#define LOG(...)             \
-    if(m_verbose)            \
-    {                        \
-        printf(__VA_ARGS__); \
-        fflush(stdout);      \
-    }
+#include "strANSIseq.hpp"   
 
 namespace AMC
 {
-  Driver::Driver(uint8_t address, bool verbose)
+Driver::Driver(uint8_t address, bool verbose)
     : m_address(address), m_verbose(true), m_client(verbose)
 {
     m_mutex = new std::mutex();
     try
     {
         LOG("\x1b[34m[AMC Driver]\x1b[0m\tStarting TCP Client.\n");
-        m_client.open_connection(Communication::Client::TCP, "192.168.127.254", 9002, 3);
+        m_client.open_connection(Communication::Client::TCP, "192.168.127.254",
+                                 9002, 3);
         m_is_connected = true;
     }
     catch(std::string msg)
     {
         std::cout << "\t\t\x1b[31mERROR:\x1b[0m " << msg << "\n";
     }
-    
-    
+
     mk_crctable();
 
     this->writeAccess();
@@ -34,14 +28,23 @@ namespace AMC
     this->set_pos(-5000);
 }
 
-void
-Driver::mk_crctable(uint16_t poly)
+Driver::~Driver()
+{
+    LOG("%s\tDisabling bridge%s",
+        ESC::fstr("[AMC Driver]", {ESC::BOLD, ESC::FG_MAGENTA}).c_str(),
+        ESC::fstr("...", {ESC::BLINK_SLOW}).c_str());
+    this->enableBridge(false);
+    this->writeAccess(false);
+    LOG("\b\b\b%s\n", ESC::fstr(" OK", {ESC::BOLD, ESC::FG_GREEN}).c_str());
+    m_client.close_connection();
+}
+
+void Driver::mk_crctable(uint16_t poly)
 {
     for(int i = 0; i < 256; i++) m_crctable[i] = crchware(i, poly, 0);
 }
 
-uint16_t
-Driver::crchware(uint16_t data, uint16_t genpoly, uint16_t accum)
+uint16_t Driver::crchware(uint16_t data, uint16_t genpoly, uint16_t accum)
 {
     static int i;
     data <<= 8;
@@ -56,35 +59,30 @@ Driver::crchware(uint16_t data, uint16_t genpoly, uint16_t accum)
     return accum;
 }
 
-void
-Driver::CRC_check(uint8_t data)
+void Driver::CRC_check(uint8_t data)
 {
     m_crc_accumulator =
         (m_crc_accumulator << 8) ^ m_crctable[(m_crc_accumulator >> 8) ^ data];
 };
 
-uint16_t
-Driver::CRC(uint8_t *buf, int n)
+uint16_t Driver::CRC(uint8_t *buf, int n)
 {
     m_crc_accumulator = 0;
     for(int i = 0; i < n; i++) CRC_check(buf[i]);
     return (m_crc_accumulator >> 8) | (m_crc_accumulator << 8);
 }
 
-int
-Driver::writeAccess(bool active)
+int Driver::writeAccess(bool active)
 {
     return this->writeIndex<uint16_t>(0x07, 0x00, active ? 0x000f : 0x0000);
 }
 
-int
-Driver::enableBridge(bool active)
+int Driver::enableBridge(bool active)
 {
     return this->writeIndex<uint16_t>(0x01, 0x00, active ? 0x0000 : 0x0001);
 }
 
-void
-Driver::printBit(int8_t val)
+void Driver::printBit(int8_t val)
 {
     std::cout << " ";
     for(int i = 0; i < 8; i++)
@@ -92,8 +90,7 @@ Driver::printBit(int8_t val)
             std::cout << "[" + std::to_string(i) + "] ";
 }
 
-void
-Driver::_readIndex(uint8_t index, uint8_t offset, uint8_t size)
+void Driver::_readIndex(uint8_t index, uint8_t offset, uint8_t size)
 {
     std::lock_guard<std::mutex> lck(*m_mutex); //ensure only one thread using it
     if(m_is_connected)
@@ -110,7 +107,7 @@ Driver::_readIndex(uint8_t index, uint8_t offset, uint8_t size)
         n -= m_client.writeS(m_buf, 8); //send request
         while(n > 0)
             n -= m_client.writeS(m_buf + 8 - n, n); //ensure evtg is written
-        _read_until_master_reply(m_buf, size + 10);  //get the master reply
+        _read_until_master_reply(m_buf, size + 10); //get the master reply
 
         if(CRC(m_buf, 6) != *(uint16_t *)(m_buf + 6)) //check if CRCs are valid
             throw "crc1 error";
@@ -119,8 +116,7 @@ Driver::_readIndex(uint8_t index, uint8_t offset, uint8_t size)
     }
 };
 
-void
-Driver::_writeIndex(uint8_t index, uint8_t offset, uint8_t size)
+void Driver::_writeIndex(uint8_t index, uint8_t offset, uint8_t size)
 {
     std::lock_guard<std::mutex> lck(*m_mutex); //ensure only one thread using it
     if(m_is_connected)
@@ -134,7 +130,7 @@ Driver::_writeIndex(uint8_t index, uint8_t offset, uint8_t size)
         *(uint16_t *)(m_buf + 6) = CRC(m_buf, 6); //compute crc on 6 first bits
         *(uint16_t *)(m_buf + 8 + size) = CRC(m_buf + 8, size); //crc on the val
         int n = 8 + size + 2;
-	
+
         n -= m_client.writeS(m_buf, 8 + size + 2); // send request
         while(n > 0) n -= m_client.writeS(m_buf + size + 10 - n, n);
 
@@ -145,9 +141,8 @@ Driver::_writeIndex(uint8_t index, uint8_t offset, uint8_t size)
     }
 };
 
-void
-Driver::_read_until_master_reply(uint8_t *buf, int len)
-{//should only be used by _writeIndex or _readIndex (to ensure locking properly)
+void Driver::_read_until_master_reply(uint8_t *buf, int len)
+{ //should only be used by _writeIndex or _readIndex (to ensure locking properly)
     for(int i = 0;;) //while the replay is not a master reply
     {
         m_client.readS(buf + i, 1);
