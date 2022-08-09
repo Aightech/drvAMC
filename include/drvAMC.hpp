@@ -11,11 +11,55 @@
 namespace AMC
 {
 
-class Driver
+class Driver : public Communication::Client
 {
     public:
-    Driver(uint8_t address = 0x3f, bool verbose = false);
-    ~Driver()
+    Driver(bool verbose = false){
+
+    };
+    ~Driver(){};
+
+    void
+    set_current(int16_t c)
+    {
+        m_buff[0] = 'c';
+        *(int16_t *)(m_buff + 2) = c;
+        this->writeS(m_buff, m_pkgSize);
+    };
+
+    uint16_t
+    get_pos()
+    {
+        m_buff[0] = 'p';
+        this->writeS(m_buff, m_pkgSize);
+        this->readS(m_buff, 2);
+        return *(uint16_t*)m_buff;
+    };
+
+    void get_stat()
+    {
+        m_buff[0] = 'd';
+        this->writeS(m_buff, m_pkgSize);
+        uint32_t vals[4];
+        this->readS((uint8_t*)vals, 12);
+
+        std::cout << "mean: " << vals[0] << std::endl;
+        std::cout << "std: " << vals[1]-vals[0]*vals[0] << std::endl;
+        std::cout << "n: " << vals[2] << std::endl;
+        
+    };
+
+    private:
+    int m_pkgSize = 6;
+    uint8_t m_buff[6];
+    bool m_verbose;
+};
+
+class Driver_setting_com
+{
+    public:
+    Driver_setting_com(uint8_t address = 0x3f, bool verbose = false);
+    ~Driver_setting_com()
     {
         this->enableBridge(false);
         this->writeAccess(false);

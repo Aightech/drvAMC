@@ -9,7 +9,7 @@
 
 namespace AMC
 {
-  Driver::Driver(uint8_t address, bool verbose)
+  Driver_setting_com::Driver_setting_com(uint8_t address, bool verbose)
     : m_address(address), m_verbose(true), m_client(verbose)
 {
     m_mutex = new std::mutex();
@@ -35,13 +35,13 @@ namespace AMC
 }
 
 void
-Driver::mk_crctable(uint16_t poly)
+Driver_setting_com::mk_crctable(uint16_t poly)
 {
     for(int i = 0; i < 256; i++) m_crctable[i] = crchware(i, poly, 0);
 }
 
 uint16_t
-Driver::crchware(uint16_t data, uint16_t genpoly, uint16_t accum)
+Driver_setting_com::crchware(uint16_t data, uint16_t genpoly, uint16_t accum)
 {
     static int i;
     data <<= 8;
@@ -57,14 +57,14 @@ Driver::crchware(uint16_t data, uint16_t genpoly, uint16_t accum)
 }
 
 void
-Driver::CRC_check(uint8_t data)
+Driver_setting_com::CRC_check(uint8_t data)
 {
     m_crc_accumulator =
         (m_crc_accumulator << 8) ^ m_crctable[(m_crc_accumulator >> 8) ^ data];
 };
 
 uint16_t
-Driver::CRC(uint8_t *buf, int n)
+Driver_setting_com::CRC(uint8_t *buf, int n)
 {
     m_crc_accumulator = 0;
     for(int i = 0; i < n; i++) CRC_check(buf[i]);
@@ -72,19 +72,19 @@ Driver::CRC(uint8_t *buf, int n)
 }
 
 int
-Driver::writeAccess(bool active)
+Driver_setting_com::writeAccess(bool active)
 {
     return this->writeIndex<uint16_t>(0x07, 0x00, active ? 0x000f : 0x0000);
 }
 
 int
-Driver::enableBridge(bool active)
+Driver_setting_com::enableBridge(bool active)
 {
     return this->writeIndex<uint16_t>(0x01, 0x00, active ? 0x0000 : 0x0001);
 }
 
 void
-Driver::printBit(int8_t val)
+Driver_setting_com::printBit(int8_t val)
 {
     std::cout << " ";
     for(int i = 0; i < 8; i++)
@@ -93,7 +93,7 @@ Driver::printBit(int8_t val)
 }
 
 void
-Driver::_readIndex(uint8_t index, uint8_t offset, uint8_t size)
+Driver_setting_com::_readIndex(uint8_t index, uint8_t offset, uint8_t size)
 {
     std::lock_guard<std::mutex> lck(*m_mutex); //ensure only one thread using it
     if(m_is_connected)
@@ -120,7 +120,7 @@ Driver::_readIndex(uint8_t index, uint8_t offset, uint8_t size)
 };
 
 void
-Driver::_writeIndex(uint8_t index, uint8_t offset, uint8_t size)
+Driver_setting_com::_writeIndex(uint8_t index, uint8_t offset, uint8_t size)
 {
     std::lock_guard<std::mutex> lck(*m_mutex); //ensure only one thread using it
     if(m_is_connected)
@@ -146,7 +146,7 @@ Driver::_writeIndex(uint8_t index, uint8_t offset, uint8_t size)
 };
 
 void
-Driver::_read_until_master_reply(uint8_t *buf, int len)
+Driver_setting_com::_read_until_master_reply(uint8_t *buf, int len)
 {//should only be used by _writeIndex or _readIndex (to ensure locking properly)
     for(int i = 0;;) //while the replay is not a master reply
     {
