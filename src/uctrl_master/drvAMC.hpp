@@ -7,6 +7,7 @@ class DrvAMC
       pinMode(m_PWM_pin, OUTPUT);
       pinMode(m_DIR_pin, OUTPUT);
       analogWriteResolution(15);
+      analogWrite(m_PWM_pin, 15);
     };
     ~DrvAMC() {};
 
@@ -18,15 +19,20 @@ class DrvAMC
     void set_current(int16_t val)//[-32768; 32768]
     {
       m_current = val;
-      if (val > 0)
+      if (val > 15)
       {
         analogWrite(m_PWM_pin, m_current);
         digitalWrite(m_DIR_pin, HIGH);
       }
-      else
+      else if(val < -15)
       {
         analogWrite(m_PWM_pin, -m_current);
         digitalWrite(m_DIR_pin, LOW);
+      }
+      else
+      {
+        analogWrite(m_PWM_pin, 15);
+        digitalWrite(m_DIR_pin, (val>0)?HIGH:LOW);
       }
     }
 
@@ -39,9 +45,9 @@ class DrvAMC
 
 
   private:
-    int m_PWM_pin;
-    int m_DIR_pin;
-    int m_POS_pin;
+    int m_PWM_pin=5;
+    int m_DIR_pin=6;
+    int m_POS_pin=0;
 
     int16_t m_current;
     uint16_t m_pos;

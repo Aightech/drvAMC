@@ -7,6 +7,7 @@
 #include "com_client.hpp"
 #include <mutex>
 #include <stdexcept>
+#include <math.h>
 
 namespace AMC
 {
@@ -23,8 +24,10 @@ class Driver : public Communication::Client
     set_current(int16_t c)
     {
         m_buff[0] = 'c';
+        m_current=c;
         *(int16_t *)(m_buff + 2) = c;
         this->writeS(m_buff, m_pkgSize);
+        this->readS(m_buff, 2);
     };
 
     uint16_t
@@ -32,25 +35,52 @@ class Driver : public Communication::Client
     {
         m_buff[0] = 'p';
         this->writeS(m_buff, m_pkgSize);
-        this->readS(m_buff, 2);
+        this->readS((uint8_t*)&m_pos, 2);
         return *(uint16_t*)m_buff;
+    };
+
+    // uint16_t
+    // set_current_get_pos(int16_t c)
+    // {
+    //     m_buff[0] = 'x';
+    //     m_current=c;
+    //     *(int16_t *)(m_buff + 2) = c;
+    //     this->writeS(m_buff, m_pkgSize);
+    //     this->readS((uint8_t*)(&m_pos), 2);
+    //     return m_pos;
+    // };
+
+    uint16_t
+    set_current_get_pos(double c)
+    {
+        m_buff[0] = 'x';
+        c=(c<-1)?-1:(c>1)?1:c;
+        m_current=c*32768;
+        std::cout << "c " << m_current<< std::endl;
+        *(int16_t *)(m_buff + 2) = m_current;
+        this->writeS(m_buff, m_pkgSize);
+        this->readS((uint8_t*)(&m_pos), 2);
+        return m_pos;
     };
 
     void get_stat()
     {
         m_buff[0] = 'd';
         this->writeS(m_buff, m_pkgSize);
-        uint32_t vals[4];
-        this->readS((uint8_t*)vals, 12);
+        float vals[4];
+        this->readS((uint8_t*)vals, 16);
 
         std::cout << "mean: " << vals[0] << std::endl;
-        std::cout << "std: " << vals[1]-vals[0]*vals[0] << std::endl;
+        std::cout << "std: " << sqrt(vals[1]-vals[0]*vals[0]) << std::endl;
         std::cout << "n: " << vals[2] << std::endl;
+        std::cout << "max: " << vals[3] << std::endl;
         
     };
 
     private:
-    int m_pkgSize = 6;
+    uint16_t m_pos;
+    int16_t m_current;
+    uint16_t m_pkgSize=6;
     uint8_t m_buff[6];
     bool m_verbose;
 };

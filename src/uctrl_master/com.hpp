@@ -97,6 +97,7 @@ class Com
         m_client = m_server->available();
         if (m_client)
         {
+          Serial.println("new client");
           m_isSocket = true;
         }
       }
@@ -105,6 +106,7 @@ class Com
         if (!m_client.connected())
         {
           m_client.stop();
+          Serial.println("end client");
           m_isSocket = false;
           
         }
@@ -137,7 +139,7 @@ class Com
 
 #endif
 #endif
-      if (n_r != n)
+      if ((size_t)n_r != n)
         return n_r;
       if (has_crc && CRC(buff, n - 2) != *(uint16_t *)(buff + n - 2))
         return -1;

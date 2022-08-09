@@ -12,11 +12,9 @@
 
 
 byte buff[255];
-int pkgSize = 6;
+int16_t pkgSize = 6;
 byte vals[255] = {0x00, 0x00, 0x00, 0x00};
 int i, nb = 0;
-
-uint16_t arr[2000]={0};
 
 DrvAMC drvAMC;
 Com com_interface;
@@ -24,9 +22,9 @@ Com com_interface;
 bool first_dt = true;
 int32_t dt;
 int32_t last_t;
-uint32_t mu[4];//mu,mup,n
+float mu[4];//mu,mup,n
 
-void compute_dt_stat()
+bool compute_dt_stat()
 {
   if (first_dt)
   {
@@ -40,17 +38,22 @@ void compute_dt_stat()
   else
   {
     dt = micros() - last_t;
-    mu[0] = (mu[0] * mu[2] + dt) / (mu[2] + 1);
-    mu[1] = (mu[1] * mu[2] + dt * dt) / (mu[2] + 1);
-    mu[2]++;
-    last_t = micros();
+    if (dt > 200)
+    {
+      mu[0] = (mu[0] * mu[2] + dt) / (mu[2] + 1);//iterative mean
+      mu[1] = (mu[1] * mu[2] + dt * dt) / (mu[2] + 1);//iterative mean of square
+      mu[2] = (mu[2]>50000)?0:mu[2]+1;//nb sample. reset to avoid huge multp&div 
+      mu[3] = (dt > mu[3]) ? dt : mu[3];//max
+      last_t = micros();
+    }
+    else
+      return false;
   }
+  return true;
 }
 
 void setup()
 {
-  for(int i =0;i<1000;i++)
-    arr[i]=0;
   Serial.begin(9600);
   //while (!Serial) {}
   Serial.println("OK");
@@ -67,26 +70,36 @@ void loop()
   int nn = com_interface.available();
   if (nn >= pkgSize)
   {
-    compute_dt_stat();
-    com_interface.read(buff, pkgSize);
-    switch (buff[0])
+    if (compute_dt_stat())
     {
-      case 'c':// set current > 'c' | id | val0 | val1
-        {
-          drvAMC.set_current(*(int16_t*)(buff + 2));
-          break;
-        }
-      case 'p':// get current > 'p'
-        {
-          com_interface.write((uint8_t*)drvAMC.get_pos_ptr(), 2);
-          break;
-        }
-      case 'd':// get current > 'p'
-        {
-          com_interface.write((uint8_t*)mu, 12);
-          first_dt = true;
-          break;
-        }
+      com_interface.read(buff, pkgSize);
+      switch (buff[0])
+      {
+        case 'c':// set current > 'c' | id | val0 | val1
+          {
+            drvAMC.set_current(*(int16_t*)(buff + 2));
+            com_interface.write((uint8_t*)&pkgSize, 2);
+            break;
+          }
+        case 'p':// get pos > 'p'
+          {
+            com_interface.write((uint8_t*)drvAMC.get_pos_ptr(), 2);
+            break;
+          }
+        case 'x':// set current and get pos > 'x' | id | val0 | val1
+          {
+            drvAMC.set_current(*(int16_t*)(buff + 2));
+            //Serial.println(*(int16_t*)(buff + 2));
+            com_interface.write((uint8_t*)drvAMC.get_pos_ptr(), 2);
+            break;
+          }  
+        case 'd':// get stat > 'd'
+          {
+            com_interface.write((uint8_t*)mu, 16);
+            first_dt = true;
+            break;
+          }
+      }
     }
   }
 
