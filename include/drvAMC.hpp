@@ -59,12 +59,7 @@ class Driver_setting_com
 {
     public:
     Driver_setting_com(uint8_t address = 0x3f, bool verbose = false);
-    ~Driver_setting_com()
-    {
-        this->enableBridge(false);
-        this->writeAccess(false);
-        m_client.close_connection();
-    };
+    ~Driver_setting_com();
 
     int
     writeAccess(bool active = true);

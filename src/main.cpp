@@ -25,7 +25,7 @@ main(int argc, char **argv)
     drv.open_connection(Communication::Client::Mode::TCP, "192.168.127.150", 5000);
     std::cout << "okk " << std::endl;
 
-    for(int i =0; i<10000; i++)
+    for(int i =0; i<1000; i++)
     {
     //drv.set_current(120);
     int pos = drv.get_pos();
