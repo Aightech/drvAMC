@@ -27,11 +27,8 @@ main(int argc, char **argv)
 
     for(int i =0; i<5000; i++)
     {
-    //drv.set_current(120);
-    int pos = drv.set_current_get_pos(-0.0);
-    //usleep(2000);
-    std::cout << pos << std::endl;
+      int pos = drv.set_current_get_pos(-0.0);
+      std::cout << pos << std::endl;
     }
-    drv.get_stat();
     return 0;
 }
