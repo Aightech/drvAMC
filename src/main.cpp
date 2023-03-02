@@ -22,13 +22,14 @@ main(int argc, char **argv)
     //   drv.writeAccess(false);
 
     AMC::Driver drv(true);
-    drv.open_connection(Communication::Client::Mode::TCP, "192.168.127.150", 5000);
+    drv.open_connection(Communication::Client::Mode::TCP, "192.168.127.151", 5000);
     std::cout << "okk " << std::endl;
+    double cur = atof(argv[1]);
 
     for(int i =0; i<5000; i++)
     {
-      int pos = drv.set_current_get_pos(-0.0);
-      std::cout << pos << std::endl;
+      double pos = drv.set_current_get_pos(cur);
+      std::cout << cur << " " <<  pos << std::endl;
     }
     return 0;
 }

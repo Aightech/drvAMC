@@ -26,7 +26,9 @@ namespace AMC
         m_current = c;
         *(double_t *)(m_buff + 2) = c;
         this->writeS(m_buff, m_pkgSize);
-        this->readS(m_buff, 2);
+        this->readS(m_buff, 1);
+	if(m_buff[0]!=0xaa)
+	  logln("error", true);
     };
 
     void set_target_position(double_t t)
@@ -35,7 +37,9 @@ namespace AMC
         m_pos_target = t;
         *(double_t *)(m_buff + 2) = t;
         this->writeS(m_buff, m_pkgSize);
-        this->readS(m_buff, 2);
+        this->readS(m_buff, 1);
+	if(m_buff[0]!=0xaa)
+	  logln("error", true);
     };
 
     uint16_t get_position()
@@ -60,7 +64,7 @@ namespace AMC
     double_t m_pos_target;
     double_t m_pos;
     double_t m_current;
-    uint16_t m_pkgSize = 6;
+    uint16_t m_pkgSize = 10;
     uint8_t m_buff[6];
 };
   
