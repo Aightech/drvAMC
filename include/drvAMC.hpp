@@ -4,9 +4,9 @@
 #include <iostream>
 #include <string>
 
-#include "tcp_client.hpp"
 #include "serial_client.hpp"
 #include "strANSIseq.hpp"
+#include "tcp_client.hpp"
 #include <math.h>
 #include <mutex>
 #include <stdexcept>
@@ -17,73 +17,80 @@ namespace AMC
 class Driver : virtual public ESC::CLI
 {
     public:
-    Driver(int verbose = -1)
-        : ESC::CLI(verbose, "Driver"){};
+    Driver(bool verbose = false)
+        : ESC::CLI(verbose, "AMC_Driver"){
+
+          };
     ~Driver(){};
 
     void open_connection(std::string mode, std::string add, int opt1, int opt2)
     {
-        if(mode =="tcp")
-            m_com = new Communication::TCP(m_verbose-1);
+        if(mode == "tcp")
+        {
+            m_client = new Communication::TCP(m_verbose - 1);
+            m_client->open_connection(add.c_str(), opt1, opt2);
+        }
         else if(mode == "serial")
-            m_com = new Communication::Serial(m_verbose-1);
+        {
+            m_client = new Communication::Serial(m_verbose - 1);
+            m_client->open_connection(add.c_str(), opt1, opt2);
+        }
         else
-            throw std::runtime_error("Unknown mode: " + mode);
-        m_com->open_connection(add.c_str(), opt1, opt2);
+        {
+            throw std::runtime_error("Unknown connection mode");
+        }
     };
 
-
-    void set_current(int16_t c)
+    void set_current(double_t c)
     {
-        m_buff[0] = 'c';
+        m_buff[0] = 'C';
         m_current = c;
-        *(int16_t *)(m_buff + 2) = c;
-        m_com->writeS(m_buff, m_pkgSize);
-        m_com->readS(m_buff, 2);
+        *(double_t *)(m_buff + 2) = c;
+        m_client->writeS(m_buff, m_pkgSize);
+        m_client->readS(m_buff, 1);
+        if(m_buff[0] != 0xaa)
+            logln("error", true);
     };
 
-    uint16_t get_pos()
+    void set_target_position(double_t t)
     {
-        m_buff[0] = 'p';
-        m_com->writeS(m_buff, m_pkgSize);
-        m_com->readS((uint8_t *)&m_pos, 2);
+        m_buff[0] = 'T';
+        m_pos_target = t;
+        *(double_t *)(m_buff + 2) = t;
+        m_client->writeS(m_buff, m_pkgSize);
+        m_client->readS(m_buff, 1);
+        if(m_buff[0] != 0xaa)
+            logln("error", true);
+    };
+
+    uint16_t get_position()
+    {
+        m_buff[0] = 'P';
+        m_client->writeS(m_buff, m_pkgSize);
+        m_client->readS((uint8_t *)&m_pos, 8);
         return *(uint16_t *)m_buff;
     };
 
-    uint16_t set_current_get_pos(double c)
+    double set_current_get_pos(double_t c)
     {
-        m_buff[0] = 'x';
-        c = (c < -1) ? -1 : (c > 1) ? 1 : c;
-        m_current = c * 32768;
-        //std::cout << "c " << m_current << std::endl;
-        *(int16_t *)(m_buff + 2) = m_current;
-        m_com->writeS(m_buff, m_pkgSize);
-        m_com->readS((uint8_t *)(&m_pos), 2);
+        m_buff[0] = 'X';
+        m_current = c;
+        *(double_t *)(m_buff + 2) = m_current;
+        m_client->writeS(m_buff, m_pkgSize);
+        m_client->readS((uint8_t *)(&m_pos), 8);
         return m_pos;
     };
 
-    void get_stat()
-    {
-        m_buff[0] = 'd';
-        m_com->writeS(m_buff, m_pkgSize);
-        float v[4];
-        m_com->readS((uint8_t *)v, 16);
-
-        logln("mean: " + ESC::fstr_n(v[0], {}), true);
-        logln("std: " + ESC::fstr_n(sqrt(v[1] - v[0] * v[0]), {}), true);
-        logln("n: " + ESC::fstr_n(v[2], {}), true);
-        logln("max: " + ESC::fstr_n(v[3], {}), true);
-    };
-
     private:
-    uint16_t m_pos;
-    int16_t m_current;
-    uint16_t m_pkgSize = 6;
+    double_t m_pos_target;
+    double_t m_pos;
+    double_t m_current;
+    uint16_t m_pkgSize = 10;
     uint8_t m_buff[6];
-    Communication::Client* m_com;
+    Communication::Client *m_client;
 };
 
-class Driver_setting_com : public ESC::CLI
+class Driver_setting_com : virtual public ESC::CLI
 {
     public:
     Driver_setting_com(uint8_t address = 0x3f, int verbose = -1);
@@ -127,7 +134,6 @@ class Driver_setting_com : public ESC::CLI
     };
 
     private:
-
     void _read_until_master_reply(uint8_t *buf, int len);
 
     void _readIndex(uint8_t index, uint8_t offset, uint8_t size);

@@ -20,23 +20,15 @@ int main(int argc, char **argv)
     //   drv.enableBridge(false);
     //   drv.writeAccess(false);
 
-    AMC::Driver drv(1);
-    try
-    {
-        drv.open_connection("tcp", "192.168.127.150",
-                            5000, 1);
-    }
-    catch(std::string msg)
-    {
-        std::cout << msg << std::endl;
-    }
+    AMC::Driver drv(true);
+    drv.open_connection("tcp", "192.168.127.150", 5000, 1);
+    std::cout << "okk " << std::endl;
+    double cur = atof(argv[1]);
+
     for(int i = 0; i < 5000; i++)
     {
-        //drv.set_current(120);
-        int pos = drv.set_current_get_pos(-0.0);
-        //usleep(2000);
-        std::cout << pos << std::endl;
+        double pos = drv.set_current_get_pos(cur);
+        std::cout << cur << " " << pos << std::endl;
     }
-    drv.get_stat();
     return 0;
 }
