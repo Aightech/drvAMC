@@ -22,7 +22,6 @@ int main(int argc, char **argv)
 
     AMC::Driver drv(true);
     drv.open_connection("tcp", "192.168.127.150", 5000, 1);
-    std::cout << "okk " << std::endl;
     double cur = atof(argv[1]);
 
     for(int i = 0; i < 5000; i++)
