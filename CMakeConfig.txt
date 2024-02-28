@@ -1,5 +1,5 @@
 set(EXEC_NAME drvAMC)
-set(PROJECT_VERSION 2.26)
+set(PROJECT_VERSION 2.27)
 
 ###### Special libraries ######
 set(EXTRA_LIBS "")

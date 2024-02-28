@@ -20,8 +20,8 @@ int main(int argc, char **argv)
     //   drv.enableBridge(false);
     //   drv.writeAccess(false);
 
-    AMC::Driver drv(true);
-    drv.open_connection("tcp", "192.168.127.150", 5000, 1);
+    AMC::Driver drv(1);
+    drv.open_connection("192.168.127.150", 5000, 1);
     double cur = atof(argv[1]);
 
     for(int i = 0; i < 5000; i++)

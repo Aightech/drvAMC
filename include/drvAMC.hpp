@@ -14,7 +14,7 @@
 namespace AMC
 {
 
-class Driver : virtual public ESC::CLI
+class Driver : public Communication::TCP
 {
     public:
     Driver(bool verbose = false)
@@ -23,31 +23,14 @@ class Driver : virtual public ESC::CLI
           };
     ~Driver(){};
 
-    void open_connection(std::string mode, std::string add, int opt1, int opt2)
-    {
-        if(mode == "tcp")
-        {
-            m_client = new Communication::TCP(m_verbose - 1);
-            m_client->open_connection(add.c_str(), opt1, opt2);
-        }
-        else if(mode == "serial")
-        {
-            m_client = new Communication::Serial(m_verbose - 1);
-            m_client->open_connection(add.c_str(), opt1, opt2);
-        }
-        else
-        {
-            throw std::runtime_error("Unknown connection mode");
-        }
-    };
 
     void set_current(double_t c)
     {
         m_buff[0] = 'C';
         m_current = c;
         *(double_t *)(m_buff + 2) = c;
-        m_client->writeS(m_buff, m_pkgSize);
-        m_client->readS(m_buff, 1);
+        this->writeS(m_buff, m_pkgSize);
+        this->readS(m_buff, 1);
         if(m_buff[0] != 0xaa)
             logln("error", true);
     };
@@ -57,8 +40,8 @@ class Driver : virtual public ESC::CLI
         m_buff[0] = 'T';
         m_pos_target = t;
         *(double_t *)(m_buff + 2) = t;
-        m_client->writeS(m_buff, m_pkgSize);
-        m_client->readS(m_buff, 1);
+        this->writeS(m_buff, m_pkgSize);
+        this->readS(m_buff, 1);
         if(m_buff[0] != 0xaa)
             logln("error", true);
     };
@@ -66,8 +49,8 @@ class Driver : virtual public ESC::CLI
     uint16_t get_position()
     {
         m_buff[0] = 'P';
-        m_client->writeS(m_buff, m_pkgSize);
-        m_client->readS((uint8_t *)&m_pos, 8);
+        this->writeS(m_buff, m_pkgSize);
+        this->readS((uint8_t *)&m_pos, 8);
         return *(uint16_t *)m_buff;
     };
 
@@ -76,8 +59,8 @@ class Driver : virtual public ESC::CLI
         m_buff[0] = 'X';
         m_current = c;
         *(double_t *)(m_buff + 2) = m_current;
-        m_client->writeS(m_buff, m_pkgSize);
-        m_client->readS((uint8_t *)(&m_pos), 8);
+        this->writeS(m_buff, m_pkgSize);
+        this->readS((uint8_t *)(&m_pos), 8);
         return m_pos;
     };
 
@@ -87,7 +70,6 @@ class Driver : virtual public ESC::CLI
     double_t m_current;
     uint16_t m_pkgSize = 10;
     uint8_t m_buff[6];
-    Communication::Client *m_client;
 };
 
 class Driver_setting_com : virtual public ESC::CLI
