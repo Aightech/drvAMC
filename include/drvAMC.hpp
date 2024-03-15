@@ -23,45 +23,63 @@ class Driver : public Communication::TCP
           };
     ~Driver(){};
 
+    void _sendCmd(const char *cmd, double_t val)
+    {
+        if(m_is_connected)
+        {
+            m_buff[0] = cmd[0];
+            *(double_t *)(m_buff + 2) = val;
+            this->writeS(m_buff, m_pkgSize);
+        }
+    };
+
+    template <typename T>
+    T recvCmd()
+    {
+        if(m_is_connected)
+        {
+            size_t n = sizeof(T);
+            this->readS(m_buff, n);
+            return *(T *)m_buff;
+        }
+        return -1;
+    };
 
     void set_current(double_t c)
     {
-        m_buff[0] = 'C';
-        m_current = c;
-        *(double_t *)(m_buff + 2) = c;
-        this->writeS(m_buff, m_pkgSize);
-        this->readS(m_buff, 1);
-        if(m_buff[0] != 0xaa)
-            logln("error", true);
+        _sendCmd("C", c);
+        // if(recvCmd<uint8_t>() != 0xaa)
+        //     logln("error", true);
     };
 
     void set_target_position(double_t t)
     {
-        m_buff[0] = 'T';
-        m_pos_target = t;
-        *(double_t *)(m_buff + 2) = t;
-        this->writeS(m_buff, m_pkgSize);
-        this->readS(m_buff, 1);
-        if(m_buff[0] != 0xaa)
-            logln("error", true);
+        _sendCmd("T", t);
+        // if(recvCmd<uint8_t>() != 0xaa)
+        //     logln("error", true);
     };
 
-    uint16_t get_position()
+    double get_position()
     {
-        m_buff[0] = 'P';
-        this->writeS(m_buff, m_pkgSize);
-        this->readS((uint8_t *)&m_pos, 8);
-        return *(uint16_t *)m_buff;
+        _sendCmd("P", 0);
+        return recvCmd<double>();
     };
+
+    void reset()
+    {
+        _sendCmd("R", 0);
+        //wait for 2s
+        usleep(2000000);
+    };
+
+    void set_Kp(double Kp) { _sendCmd("K", Kp); }
+
+    void set_Kd(double Kd) { _sendCmd("D", Kd); }
 
     double set_current_get_pos(double_t c)
     {
-        m_buff[0] = 'X';
-        m_current = c;
-        *(double_t *)(m_buff + 2) = m_current;
-        this->writeS(m_buff, m_pkgSize);
-        this->readS((uint8_t *)(&m_pos), 8);
-        return m_pos;
+        _sendCmd("X", c);
+        return recvCmd<double_t>();
     };
 
     private:
